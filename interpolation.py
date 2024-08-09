@@ -47,7 +47,8 @@ lon_matrix = np.zeros((rows, cols))
 lat_matrix = np.zeros((rows, cols))
 u_matrix = np.zeros((rows, cols))
 v_matrix = np.zeros((rows, cols))
-interpolated_matrix = np.full((rows, cols), True, dtype=bool)
+interpolated_matrix = np.zeros((rows, cols))
+#interpolated_matrix = np.full((rows, cols), True, dtype=bool)
 
 # putting in radial velocity into matrix
 
@@ -62,7 +63,7 @@ for r, b, n, t, u, v in zip(rg, bearings, lon_original, lat_original, u_original
     lat_matrix[r][b] = t
     u_matrix[r][b] = u
     v_matrix[r][b] = v
-    interpolated_matrix[r][b] = False
+    interpolated_matrix[r][b] = 1
     
     
 # getting interpolated data
@@ -81,28 +82,46 @@ def interpolate(rdist, cdist, r, c):
     increment = (lon_matrix[r][c] - lon_matrix[r - rdist][c - cdist]) / dist
     #print(increment)
     for d in range(1, dist):
-        lon_interpolated.append(d * increment + lon_matrix[r - rdist][c - cdist])
+        lon_interpolated.append(lon_matrix[r][c] - d * increment)
+        if rdist > cdist:
+            lon_matrix[r - d][c] = lon_interpolated[-1]
+            interpolated_matrix[r - d][c] = 2
+        else:
+            lon_matrix[r][c - d] = lon_interpolated[-1]
+            interpolated_matrix[r][c - d] = 3
     
     increment = (lat_matrix[r][c] - lat_matrix[r - rdist][c - cdist]) / dist
     #print(increment)
     for d in range(1, dist):
-        lat_interpolated.append(d * increment + lat_matrix[r - rdist][c - cdist])
+        lat_interpolated.append(lat_matrix[r][c] - d * increment)
+        if rdist > cdist:
+            lat_matrix[r - d][c] = lat_interpolated[-1]
+        else:
+            lat_matrix[r][c - d] = lat_interpolated[-1]
     
     increment = (u_matrix[r][c] - u_matrix[r - rdist][c - cdist]) / dist
     #print(increment)
     for d in range(1, dist):
-        u_interpolated.append(d * increment + u_matrix[r - rdist][c - cdist])
+        u_interpolated.append(u_matrix[r][c] - d * increment)
+        if rdist > cdist:
+            u_matrix[r - d][c] = u_interpolated[-1]
+        else:
+            u_matrix[r][c - d] = u_interpolated[-1]
     
     increment = (v_matrix[r][c] - v_matrix[r - rdist][c - cdist]) / dist
     #print(increment)
     for d in range(1, dist):
-        v_interpolated.append(d * increment + v_matrix[r - rdist][c - cdist])
+        v_interpolated.append(v_matrix[r][c] - d * increment)
+        if rdist > cdist:
+            v_matrix[r - d][c] = v_interpolated[-1]
+        else:
+            v_matrix[r][c - d] = v_interpolated[-1]
 
 def interpolation_bearing(max_dist):
     for r in range(rows):
         dist = max_dist + 1
         for c in range(cols):
-            if interpolated_matrix[r][c] == False:
+            if interpolated_matrix[r][c] != 0:
                 if dist <= max_dist and dist > 0:
                     interpolate(0, dist + 1, r, c)
                 dist = 0
@@ -113,7 +132,7 @@ def interpolation_range(max_dist):
     for c in range(cols):
         dist = max_dist + 1
         for r in range(rows):
-            if interpolated_matrix[r][c] == False:
+            if interpolated_matrix[r][c] != 0:
                 if dist <= max_dist and dist > 0:
                     interpolate(dist + 1, 0, r, c)
                 dist = 0
