@@ -1,19 +1,26 @@
 # import libraries
 from hfradarpy.radials import Radial
+import glob
+import os
 import xarray as xr
 
 # read in the data of a radial file
 radial_dir = './radials_clean/'
-radial_file = 'RDLm_MARA_2024_04_29_1600.ruv'
 
-r = Radial(radial_dir + radial_file)
+# save directory
+save_dir = './post_int_images'
+
+# use glob to find radial files (*
+files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
+
+r = Radial(files[80])
 
 # dataframe
 df = r.data
 
 # separate the data to have specific variables (put into numpy arrays)
-antenna_lon = -80.9832833
-antenna_lat = 24.7401333
+#antenna_lon = -80.9832833
+#antenna_lat = 24.7401333
 
 lon_original = df['LOND'].to_numpy()
 lat_original = df['LATD'].to_numpy()
@@ -192,7 +199,13 @@ qargs['transform'] = ccrs.PlateCarree()
 qargs['norm'] = offset
 
 # add colors
-colors = np.concatenate([['c'] * len(lon_original), ['red'] * bearing_length, ['orange'] * (len(lon_interpolated) - bearing_length)])
+colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * bearing_length, ['orange'] * (len(lon_interpolated) - bearing_length)])
+
+import matplotlib.lines as mlines
+legend_lines = [mlines.Line2D([], [], color='c', lw=3, label='Original Data'), 
+                 mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Bearing Data'),
+                 mlines.Line2D([], [], color='orange', lw=3, label='Interpolated Range Data')]
+
 
 # plot arrows
 q1 = ax.quiver(
@@ -205,6 +218,6 @@ q1 = ax.quiver(
 )
 
 # include legend
-
+ax.legend(handles=legend_lines)
 plt.show()
 
