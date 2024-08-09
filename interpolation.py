@@ -121,6 +121,7 @@ def interpolation_range(max_dist):
                 dist = dist + 1     
                 
 interpolation_bearing(3)
+bearing_length = len(lon_interpolated)
 interpolation_range(3)                            
         
 # plotting from the matrix (to monitor progress)
@@ -171,14 +172,20 @@ qargs = dict(scale=scale, headwidth=headwidth, headlength=headlength, headaxisle
 qargs['transform'] = ccrs.PlateCarree()
 qargs['norm'] = offset
 
+# add colors
+colors = np.concatenate([['c'] * len(lon_original), ['red'] * bearing_length, ['orange'] * (len(lon_interpolated) - bearing_length)])
+
 # plot arrows
 q1 = ax.quiver(
     x,
     y,
     u,
     v,
+    color=colors,
     **qargs
 )
+
+# include legend
 
 plt.show()
 
