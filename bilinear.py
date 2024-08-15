@@ -14,7 +14,7 @@ save_dir = './post_int_images'
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
 
 # select file
-r = Radial(files[80])
+r = Radial(files[0])
 
 # dataframe
 df = r.data
@@ -89,7 +89,7 @@ def split():
     i = 0
     start = 0
 
-    for r in range(rows):
+    for r in range(rows - 10):
 
         temp_lon = []
         temp_lat = []
@@ -130,127 +130,103 @@ def split():
 
 split()
 
-def bilinear(l, l2, r, c):
-    b00 = l[r + 1][c - 1]
-    b01 = l[r - 1][c - 1]
-    b10 = l[r + 1][c + 1]
-    b11 = l[r - 1][c + 1]
-    
-    b1 = (b00 + b10) / 2
-    b2 = (b01 + b11) / 2
-    
-    result = (b1 + b2) / 2
-    
-    l[r][c] = result
-    
-    l2.append(result)
-    
+# POSSIBLE GRIDS
 
-def interpolation():
-    for r in range(1, rows - 1):
-        for c in range(1, cols - 1):
-            if interpolated_matrix[r][c] != 1:
-                bilinear(u_matrix, u_interpolated, r, c)
-                bilinear(v_matrix, v_interpolated, r, c)
-                lon_interpolated.append(lon_matrix[r][c])
-                lat_interpolated.append(lat_matrix[r][c])
-                interpolated_matrix[r][c] = 3
+# 1: 1, 1, 1, 1
 
-interpolation()            
-            
-'''
-boundary = [0, 0, 0, 0]
+# 2: 1, 1, 1, 2
+#    1, 1, 2, 1
+#    1, 2, 1, 1
+#    2, 1, 1, 1
 
+#    2, 2, 1, 1
+#    2, 1, 2, 1
+#    2, 1, 1, 2
+#    1, 2, 2, 1
+#    1, 2, 1, 2
+#    1, 1, 2, 2
 
-def bi_interpolate(dist, r, c):
-    for d in range(1, dist):
-        if interpolated_matrix[r - d][c] == 0:
-            boundary[0] = 1
-        if interpolated_matrix[r + d][c] == 0:
-            boundary[0] = 1
-        if interpolated_matrix[r][c - d] == 0:
-            boundary[0] = 1
-        if interpolated_matrix[r][c + d] == 0:
-            boundary[0] = 1           
+#    2, 2, 2, 1
+#    1, 2, 2, 2
+#    2, 1, 2, 2
+#    2, 2, 1, 2
 
-def interpolation(max_dist):
-    for r in range(rows):
-        for c in range(cols):
-            if interpolated_matrix[r][c] == 0:
-                bi_interpolate(dist, r, c)
+#    2, 2, 2, 2
 
-
-
-def interpolate(rdist, cdist, r, c):
+def check_grid(r, c, a):
     
-    dist = max(rdist, cdist)
+    if (interpolated_matrix[r + a[0]][c - a[2]] != 1 or 
+        interpolated_matrix[r - a[1]][c - a[2]] != 1 or
+        interpolated_matrix[r + a[0]][c + a[3]] != 1 or
+        interpolated_matrix[r - a[1]][c + a[3]] != 1):
+            return False
     
-    increment = (lon_matrix[r][c] - lon_matrix[r - rdist][c - cdist]) / dist
-    #print(increment)
-    for d in range(1, dist):
-        lon_interpolated.append(lon_matrix[r][c] - d * increment)
-        if rdist > cdist:
-            lon_matrix[r - d][c] = lon_interpolated[-1]
-            interpolated_matrix[r - d][c] = 2
-        else:
-            lon_matrix[r][c - d] = lon_interpolated[-1]
-            interpolated_matrix[r][c - d] = 3
-    
-    increment = (lat_matrix[r][c] - lat_matrix[r - rdist][c - cdist]) / dist
-    #print(increment)
-    for d in range(1, dist):
-        lat_interpolated.append(lat_matrix[r][c] - d * increment)
-        if rdist > cdist:
-            lat_matrix[r - d][c] = lat_interpolated[-1]
-        else:
-            lat_matrix[r][c - d] = lat_interpolated[-1]
-    
-    increment = (u_matrix[r][c] - u_matrix[r - rdist][c - cdist]) / dist
-    #print(increment)
-    for d in range(1, dist):
-        u_interpolated.append(u_matrix[r][c] - d * increment)
-        if rdist > cdist:
-            u_matrix[r - d][c] = u_interpolated[-1]
-        else:
-            u_matrix[r][c - d] = u_interpolated[-1]
-    
-    increment = (v_matrix[r][c] - v_matrix[r - rdist][c - cdist]) / dist
-    #print(increment)
-    for d in range(1, dist):
-        v_interpolated.append(v_matrix[r][c] - d * increment)
-        if rdist > cdist:
-            v_matrix[r - d][c] = v_interpolated[-1]
-        else:
-            v_matrix[r][c - d] = v_interpolated[-1]
+    return True
 
-def interpolation_bearing(max_dist):
-    for r in range(rows):
-        dist = max_dist + 1
-        for c in range(cols):
-            if interpolated_matrix[r][c] == 1:
-                if dist <= max_dist and dist > 0:
-                    interpolate(0, dist + 1, r, c)
-                dist = 0
-            else:
-                dist = dist + 1
-                
-def interpolation_range(max_dist):
-    for c in range(cols):
-        dist = max_dist + 1
-        for r in range(rows):
-            if interpolated_matrix[r][c] == 1:
-                if dist <= max_dist and dist > 0:
-                    interpolate(dist + 1, 0, r, c)
-                dist = 0
-            else:
-                dist = dist + 1     
-'''
-                
-#interpolation_bearing(3)
-#bearing_length = len(lon_interpolated)
-#interpolation_range(3)                            
+def get_grid(r, c, a):
 
+    if check_grid(r, c, a):
+        return True
+
+    for e in a:
+        e = 2
+        if check_grid(r, c, a):
+            return True
+        e = 1
         
+    for i in range(4):
+        a[i] = 2
+        for j in range(i + 1, 4):
+            a[j] = 2
+            if check_grid(r, c, a):
+                return True
+            a[j] = 1
+        a[i] = 1     
+    
+    return False
+        
+
+
+# array: [dr1, dr2, dc1, dc2]
+
+def bilinear(m, l, r, c, a):
+
+    b00 = m[r + a[0]][c - a[2]]
+    b01 = m[r - a[1]][c - a[2]]
+    b10 = m[r + a[0]][c + a[3]]
+    b11 = m[r - a[1]][c + a[3]]
+    
+    b1 = (b00 * a[0] + b01 * a[1]) / (a[0] + a[1])
+    b2 = (b10 * a[0] + b11 * a[1]) / (a[0] + a[1])
+    
+    result = (b1 * a[2] + b2 * a[3]) / (a[2] + a[3])
+    
+    m[r][c] = result
+    l.append(result)
+
+
+def interpolation(d):
+
+    for r in range(d, rows - d):
+    
+        for c in range(d, cols - d):
+            
+            a = [1, 1, 1, 1]
+            
+            # if value has been interpolated
+            if interpolated_matrix[r][c] == 2:
+            
+            # run through possible grids for bilinear
+                if get_grid(r, c, a):
+                    bilinear(u_matrix, u_interpolated, r, c, a)
+                    bilinear(v_matrix, v_interpolated, r, c, a)
+                    lon_interpolated.append(lon_matrix[r][c])
+                    lat_interpolated.append(lat_matrix[r][c])
+                    interpolated_matrix[r][c] = 3
+
+#interpolation(1)        
+interpolation(2)    
+
 # plotting from the matrix (to monitor progress)
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -263,6 +239,7 @@ fig, ax = plt.subplots(
     figsize=(11, 8),
     subplot_kw=dict(projection=ccrs.Mercator())
 )
+
 
 # setting the extent
 extent = [-82.8, -78.3, 22.5, 26.1]
@@ -303,14 +280,12 @@ qargs['norm'] = offset
 
 colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * (len(lon_interpolated))])
 
-'''
-colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * bearing_length, ['orange'] * (len(lon_interpolated) - bearing_length)])
+
 
 import matplotlib.lines as mlines
 legend_lines = [mlines.Line2D([], [], color='c', lw=3, label='Original Data'), 
-                 mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Bearing Data'),
-                 mlines.Line2D([], [], color='orange', lw=3, label='Interpolated Range Data')]
-'''
+                 mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Data')]
+
 
 # plot arrows
 q1 = ax.quiver(
@@ -326,6 +301,6 @@ q1 = ax.quiver(
 
 # include legend
 #plt.scatter(x, y)
-#ax.legend(handles=legend_lines)
+ax.legend(handles=legend_lines)
 plt.show()
 
