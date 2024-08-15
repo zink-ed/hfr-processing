@@ -11,7 +11,7 @@ radial_dir = './radials_clean/MARA/'
 # use glob to find radial files (*
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
 
-r = Radial(files[80])
+r = Radial(files[0])
 
 # dataframe
 df = r.data
@@ -48,9 +48,14 @@ def create_dict(list1, dict1):
         
 create_dict(lon_original, temp_lon)
 create_dict(lat_original, temp_lat)
-#create_dict(lon_original, temp_lon)
+create_dict(bearings, temp_bear)
 #create_dict(lon_original, temp_lon)
 
+#print(temp_lon)
+#print(temp_lat)
+#print(temp_bear)
+
+'''
 i = 0
 
 while ranges[i] == ranges[0]:
@@ -60,7 +65,8 @@ while ranges[i] == ranges[0]:
     temp_u.append(u_original[i])
     temp_v.append(v_original[i])
     i = i + 1
-   
+'''
+
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import interp1d, interp2d
 
@@ -72,9 +78,27 @@ fig, ax = plt.subplots(
 )
 
 
-new_angles = np.arange(temp_bear[0], temp_bear[-1], 2)
+#new_angles = np.arange(temp_bear[0], temp_bear[-1], 2)
 
 # cubic spline and interp1d
+
+
+# goes through each key
+for n, t, b in zip(temp_lon, temp_lat, temp_bear):
+    i_lon = []
+    i_lat = []
+    
+    if len(temp_bear[b]) > 25:
+        #print(len(temp_bear[b]))
+        new_angles = np.arange(temp_bear[b][0], temp_bear[b][-1], 2)
+        if_lon = interp1d(np.array(temp_bear[b]), np.array(temp_lon[n]), kind='quadratic')
+        if_lat = interp1d(np.array(temp_bear[b]), np.array(temp_lat[t]), kind='quadratic')
+        i_lon = if_lon(new_angles)
+        i_lat = if_lat(new_angles)
+        plt.scatter(i_lon, i_lat, color='r', alpha=0.75)
+    plt.scatter(temp_lon[n], temp_lat[t], color='b', alpha=0.25)
+    
+
 '''
 cf_lon = CubicSpline(np.array(temp_bear), np.array(temp_lon))
 if_lon = interp1d(np.array(temp_bear), np.array(temp_lon), kind='quadratic')
@@ -85,7 +109,9 @@ cf_lat = CubicSpline(np.array(temp_bear), np.array(temp_lat))
 if_lat = interp1d(np.array(temp_bear), np.array(temp_lat), kind='quadratic')
 c_lat = cf_lat(new_angles)
 i_lat = if_lat(new_angles)
+
 '''
+
 # interp2d
 
 '''
@@ -98,50 +124,12 @@ i_v = if_v(new_angles)
 '''
 # try rbf interpolation
 r = np.deg2rad(temp_bear)
-
+'''
 
 # plotting
-plt.plot(new_angles, i_u, color = 'r', alpha=0.75)
-plt.plot(new_angles, c_u, color ='g', alpha=0.65)
-plt.scatter(temp_bear, temp_u, color ='b')
+#plt.plot(new_angles, i_u, color = 'r', alpha=0.75)
+#plt.plot(new_angles, c_u, color ='g', alpha=0.65)
+#plt.scatter(temp_bear, temp_u, color ='b')
 plt.show()
-'''
 
-'''
-# create matrix
 
-import numpy as np
-
-# getting dimensions
-maxr = np.max(rg)
-minr = np.min(rg)
-maxc = np.max(bearings)
-minc = np.min(bearings)
-
-rows = maxr - minr + 1
-cols = int((maxc - minc) / 2) + 1
-
-#matrix = np.zeros((maxr - minr + 1, int((maxc - minc) / 2) + 1))
-
-lon_matrix = np.zeros((rows, cols))
-lat_matrix = np.zeros((rows, cols))
-u_matrix = np.zeros((rows, cols))
-v_matrix = np.zeros((rows, cols))
-interpolated_matrix = np.zeros((rows, cols))
-
-# putting in radial velocity into matrix
-
-for r, b, n, t, u, v in zip(rg, bearings, lon_original, lat_original, u_original, v_original):
-    # r for the row
-    r = r - minr
-    # b for the column
-    b = int((b - minc) / 2)
-    
-    # setting matrix element
-    lon_matrix[r][b] = n
-    lat_matrix[r][b] = t
-    u_matrix[r][b] = u
-    v_matrix[r][b] = v
-    interpolated_matrix[r][b] = 1
-    
-'''
