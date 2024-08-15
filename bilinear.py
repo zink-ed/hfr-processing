@@ -14,7 +14,7 @@ save_dir = './post_int_images'
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
 
 # select file
-r = Radial(files[0])
+r = Radial(files[70])
 
 # dataframe
 df = r.data
@@ -81,7 +81,78 @@ v_interpolated = []
 lon_interpolated = []
 lat_interpolated = []
 
-from scipy.interpolate import interp1d
+# dictionaries
+temp_lon = {}
+temp_lat = {}
+temp_bear = {}
+
+# separate list into dict by range
+def create_dict(list1, dict1):
+    for r, l in zip(ranges, list1):
+        if r in dict1:
+            dict1[r].append(l)
+        else:
+            dict1[r] = [l]
+        
+create_dict(lon_original, temp_lon)
+create_dict(lat_original, temp_lat)
+create_dict(bearings, temp_bear)
+
+#print(temp_lon)
+#print(temp_lat)
+#print(temp_bear)
+
+# interpolating lon and lat
+
+from scipy.interpolate import CubicSpline
+from scipy.interpolate import interp1d, interp2d
+
+# goes through each key / range
+for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
+
+    # start of cluster
+    start = 0
+    
+    # going through each bearing
+    for i in range(1, len(temp_bear[b])):
+    
+        # checking if next point is too far or at the end
+        if temp_bear[b][i] - temp_bear[b][i - 1] > 12 or i == len(temp_bear[b]) - 1:
+            if i == len(temp_bear[b]) - 1:
+                i = i + 1
+            cluster = temp_bear[b][start:i]
+            
+            #print(cluster)
+            
+            # checking if cluster has enough points
+            if len(cluster) > 2:
+                # +2 to finish the interpolation at the end
+                new_angles = np.arange(cluster[0], cluster[-1] + 2, 2)
+                if_lon = interp1d(np.array(cluster), np.array(temp_lon[n][start:i]), kind='quadratic')
+                if_lat = interp1d(np.array(cluster), np.array(temp_lat[t][start:i]), kind='quadratic')
+                i_lon = if_lon(new_angles)
+                i_lat = if_lat(new_angles)
+                #plt.scatter(i_lon, i_lat, color='r', alpha=0.75)
+
+                # adding each interpolated lon and lat to the matrix
+                for o, a, p in zip(i_lon, i_lat, new_angles):
+                    
+                    # getting the index for bearing
+                    c = int((p - minc) / 2)
+            
+                    if interpolated_matrix[r][c] != 1:
+                        lon_matrix[r][c] = o
+                        lat_matrix[r][c] = a
+                        #lon_interpolated.append(n)
+                        #lat_interpolated.append(t)
+                        interpolated_matrix[r][c] = 2
+                
+            # updating start of cluster
+            start = i
+                        
+    #plt.scatter(temp_lon[n], temp_lat[t], color='b', alpha=0.25)
+
+'''
 
 def split():
     
@@ -129,6 +200,7 @@ def split():
         start = i
 
 split()
+'''
 
 # POSSIBLE GRIDS
 
@@ -153,6 +225,7 @@ split()
 
 #    2, 2, 2, 2
 
+# checking if grid is there
 def check_grid(r, c, a):
     
     if (interpolated_matrix[r + a[0]][c - a[2]] != 1 or 
@@ -163,17 +236,21 @@ def check_grid(r, c, a):
     
     return True
 
+# possible grids
 def get_grid(r, c, a):
-
+    
+    # check [1, 1, 1, 1]
     if check_grid(r, c, a):
         return True
 
+    # check when one entry is 2
     for e in a:
         e = 2
         if check_grid(r, c, a):
             return True
         e = 1
-        
+    
+    # when two entries are 2
     for i in range(4):
         a[i] = 2
         for j in range(i + 1, 4):
@@ -185,10 +262,9 @@ def get_grid(r, c, a):
     
     return False
         
-
-
 # array: [dr1, dr2, dc1, dc2]
 
+# bilinear interpolation formula
 def bilinear(m, l, r, c, a):
 
     b00 = m[r + a[0]][c - a[2]]
@@ -204,7 +280,7 @@ def bilinear(m, l, r, c, a):
     m[r][c] = result
     l.append(result)
 
-
+# applying the interpolation
 def interpolation(d):
 
     for r in range(d, rows - d):
@@ -213,10 +289,10 @@ def interpolation(d):
             
             a = [1, 1, 1, 1]
             
-            # if value has been interpolated
+            # if lon + lat has been interpolated
             if interpolated_matrix[r][c] == 2:
             
-            # run through possible grids for bilinear
+                # add points if grid has been found
                 if get_grid(r, c, a):
                     bilinear(u_matrix, u_interpolated, r, c, a)
                     bilinear(v_matrix, v_interpolated, r, c, a)
@@ -240,7 +316,6 @@ fig, ax = plt.subplots(
     subplot_kw=dict(projection=ccrs.Mercator())
 )
 
-
 # setting the extent
 extent = [-82.8, -78.3, 22.5, 26.1]
 ax.set_extent(extent)
@@ -254,11 +329,8 @@ scale=None
 headwidth=3
 headlength=5
 headaxislength=5
-#sub=1
 velocity_min = -40
 velocity_max = 40
-#cbar_step = 10
-#offset = Normalize(vmin=velocity_min, vmax=velocity_max, clip=True)
 
 # plot details
 title = 'Radial Map: Original and Interpolated Data'
@@ -277,15 +349,12 @@ qargs['transform'] = ccrs.PlateCarree()
 qargs['norm'] = offset
 
 # add color
-
 colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * (len(lon_interpolated))])
 
-
-
+# add legend
 import matplotlib.lines as mlines
 legend_lines = [mlines.Line2D([], [], color='c', lw=3, label='Original Data'), 
                  mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Data')]
-
 
 # plot arrows
 q1 = ax.quiver(
@@ -296,8 +365,6 @@ q1 = ax.quiver(
     color=colors,
     **qargs
 )
-
-
 
 # include legend
 #plt.scatter(x, y)
