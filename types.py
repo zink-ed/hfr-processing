@@ -11,7 +11,7 @@ radial_dir = './radials_clean/MARA/'
 # use glob to find radial files (*
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
 
-r = Radial(files[0])
+r = Radial(files[50])
 
 # dataframe
 df = r.data
@@ -114,12 +114,12 @@ i_lat = if_lat(new_angles)
 
 # interp2d
 
-'''
+
 if_u = interp2d(np.array(temp_bear), np.array(temp_u), kind='quadratic')
 if_v = interp2d(np.array(temp_bear), np.array(temp_v), kind='quadratic')
 i_u = if_u(new_angles)
 i_v = if_v(new_angles)
-'''
+
 
 '''
 # try rbf interpolation
