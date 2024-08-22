@@ -99,7 +99,7 @@ create_dict(bearings, temp_bear)
 # interpolating lon and lat
 
 from scipy.interpolate import CubicSpline
-from scipy.interpolate import interp1d, interp2d, griddata
+from scipy.interpolate import interp1d, interp2d, griddata, RBFInterpolator
 
 # goes through each key / range
 for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
@@ -146,24 +146,28 @@ for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
                         
     #plt.scatter(temp_lon[n], temp_lat[t], color='b', alpha=0.25)
 
+# GRIDDATA
+
 x = np.concatenate((lon_original, lon_interpolated)) 
 y = np.concatenate((lat_original, lat_interpolated)) 
-
-#print(len(lon_original))
-#print(len(lon_interpolated))
 
 points=np.transpose(np.vstack((lon_original, lat_original)))
 grid = np.transpose(np.vstack((x, y)))
 
-#print(points)
-#print(grid)
+u_m1 = griddata(points, u_original, grid, method='cubic')
+v_m1 = griddata(points, v_original, grid, method='cubic')
 
-u_m2 = griddata(points, u_original, grid, method='cubic')
-v_m2 = griddata(points, v_original, grid, method='cubic')
-#print(u_original)
-#print(v_original)
-#print(u_m2)
-#print(v_m2)
+
+# INTERP2D
+
+# RBF
+
+rbf_u = RBFInterpolator(points, u_original)
+rbf_v = RBFInterpolator(points, v_original)
+
+u_m2 = rbf_u(grid)
+v_m2 = rbf_v(grid)
+
 
 # plotting from the matrix (to monitor progress)
 import matplotlib.pyplot as plt
@@ -175,7 +179,6 @@ fig, ax = plt.subplots(
     figsize=(11, 8),
     subplot_kw=dict(projection=ccrs.Mercator())
 )
-
 
 # import plotting stuff
 from matplotlib import colors
@@ -205,15 +208,27 @@ qargs['transform'] = ccrs.PlateCarree()
 qargs['norm'] = offset
 
 # add color
-colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * (len(lon_interpolated))])
+color1 = np.concatenate([['c'] * len(lon_original), ['g'] * (len(lon_interpolated))])
 
 # plot arrows
+
+q1 = ax.quiver(
+    x,
+    y,
+    u_m1,
+    v_m1,
+    color=color1,
+    **qargs
+)
+
+color2 = np.concatenate([['none'] * len(lon_original), ['tomato'] * (len(lon_interpolated))])
+
 q1 = ax.quiver(
     x,
     y,
     u_m2,
     v_m2,
-    color=colors,
+    color=color2,
     **qargs
 )
 
