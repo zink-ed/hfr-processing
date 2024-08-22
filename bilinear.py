@@ -6,6 +6,7 @@ import xarray as xr
 
 # read in the data of a radial file
 radial_dir = './radials_clean/MARA/'
+#radial_dir = './radials_clean/KEYWEST/'
 
 # save directory
 save_dir = './post_int_images'
@@ -20,9 +21,6 @@ r = Radial(files[70])
 df = r.data
 
 # separate the data to have specific variables (put into numpy arrays)
-#antenna_lon = -80.9832833
-#antenna_lat = 24.7401333
-
 lon_original = df['LOND'].to_numpy()
 lat_original = df['LATD'].to_numpy()
 
@@ -56,8 +54,8 @@ v_matrix = np.zeros((rows, cols))
 interpolated_matrix = np.zeros((rows, cols))
 
 # putting in radial velocity into matrix
-
 for r, b, n, t, u, v in zip(rg, bearings, lon_original, lat_original, u_original, v_original):
+    
     # r for the row
     r = r - minr
     # b for the column
@@ -68,18 +66,20 @@ for r, b, n, t, u, v in zip(rg, bearings, lon_original, lat_original, u_original
     lat_matrix[r][b] = t
     u_matrix[r][b] = u
     v_matrix[r][b] = v
-    interpolated_matrix[r][b] = 1
-    
-    
-# getting interpolated data
-
-u_interpolated = []
-v_interpolated = []
+    interpolated_matrix[r][b] = 1   # 1 means original
+       
+# getting interpolated u and v data
+u_lin = []
+v_lin = []
+u_bilin = []
+v_bilin = []
 
 # interpolated lon and lat
+lon_lin = []
+lat_lin = []
 
-lon_interpolated = []
-lat_interpolated = []
+lon_bilin = []
+lat_bilin = []
 
 # dictionaries
 temp_lon = {}
@@ -104,8 +104,7 @@ create_dict(bearings, temp_bear)
 
 # interpolating lon and lat
 
-from scipy.interpolate import CubicSpline
-from scipy.interpolate import interp1d, interp2d
+from scipy.interpolate import interp1d
 
 # goes through each key / range
 for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
@@ -122,8 +121,6 @@ for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
                 i = i + 1
             cluster = temp_bear[b][start:i]
             
-            #print(cluster)
-            
             # checking if cluster has enough points
             if len(cluster) > 2:
                 # +2 to finish the interpolation at the end
@@ -132,7 +129,6 @@ for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
                 if_lat = interp1d(np.array(cluster), np.array(temp_lat[t][start:i]), kind='quadratic')
                 i_lon = if_lon(new_angles)
                 i_lat = if_lat(new_angles)
-                #plt.scatter(i_lon, i_lat, color='r', alpha=0.75)
 
                 # adding each interpolated lon and lat to the matrix
                 for o, a, p in zip(i_lon, i_lat, new_angles):
@@ -143,64 +139,37 @@ for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
                     if interpolated_matrix[r][c] != 1:
                         lon_matrix[r][c] = o
                         lat_matrix[r][c] = a
-                        #lon_interpolated.append(n)
-                        #lat_interpolated.append(t)
                         interpolated_matrix[r][c] = 2
                 
             # updating start of cluster
             start = i
-                        
-    #plt.scatter(temp_lon[n], temp_lat[t], color='b', alpha=0.25)
+         
+# check for row or column interpolation (have neighbors)   
+def check_next(r, c, l1, l2):
+    if (interpolated_matrix[r-1][c] == 1 and interpolated_matrix[r+1][c] == 1 and interpolated_matrix[r][c-1] == 1 and interpolated_matrix[r][c+1]==1):
+        l1.append(u_matrix[r-1][c])
+        l1.append(u_matrix[r+1][c])
+        l1.append(u_matrix[r][c-1])
+        l1.append(u_matrix[r][c+1])
+        l2.append(v_matrix[r-1][c])
+        l2.append(v_matrix[r+1][c])
+        l2.append(v_matrix[r][c-1])
+        l2.append(v_matrix[r][c+1])
+        return True
+    elif (interpolated_matrix[r][c-1] == 1 and interpolated_matrix[r][c+1]==1):
+        l1.append(u_matrix[r][c-1])
+        l1.append(u_matrix[r][c+1])
+        l2.append(v_matrix[r][c-1])
+        l2.append(v_matrix[r][c+1])
+        return True
+    elif (interpolated_matrix[r-1][c] == 1 and interpolated_matrix[r+1][c] == 1):
+        l1.append(u_matrix[r-1][c])
+        l1.append(u_matrix[r+1][c])
+        l2.append(v_matrix[r-1][c])
+        l2.append(v_matrix[r+1][c])
+        return True
+    return False
 
-'''
-
-def split():
-    
-    
-    i = 0
-    start = 0
-
-    for r in range(rows - 10):
-
-        temp_lon = []
-        temp_lat = []
-        temp_bear = []
-
-        while ranges[i] == ranges[start]:
-            temp_lon.append(lon_original[i])
-            temp_lat.append(lat_original[i])
-            temp_bear.append(bearings[i])
-            i = i + 1
-            
-            if i == len(ranges):
-                break
-            
-        new_angles = np.arange(temp_bear[0], temp_bear[-1], 2)
-        
-        offset = int((temp_bear[0] - minc) / 2)
-        
-        if_lon = interp1d(np.array(temp_bear), np.array(temp_lon), kind='quadratic')
-        i_lon = if_lon(new_angles)
-        
-        if_lat = interp1d(np.array(temp_bear), np.array(temp_lat), kind='quadratic')
-        i_lat = if_lat(new_angles)
-        
-        c = offset
-        
-        for n, t in zip(i_lon, i_lat):
-            
-            if interpolated_matrix[r][c] != 1:
-                lon_matrix[r][c] = n
-                lat_matrix[r][c] = t
-                #lon_interpolated.append(n)
-                #lat_interpolated.append(t)
-                interpolated_matrix[r][c] = 2
-            c = c + 1
-       
-        start = i
-
-split()
-'''
 
 # POSSIBLE GRIDS
 
@@ -262,7 +231,7 @@ def get_grid(r, c, a):
     
     return False
         
-# array: [dr1, dr2, dc1, dc2]
+# array: [dr1, dr2, dc1, dc2] 
 
 # bilinear interpolation formula
 def bilinear(m, l, r, c, a):
@@ -279,6 +248,23 @@ def bilinear(m, l, r, c, a):
     
     m[r][c] = result
     l.append(result)
+      
+def add_values(r, c):
+    interpolated_matrix[r][c] = 3
+    lon_bilin.append(lon_matrix[r][c])
+    lat_bilin.append(lat_matrix[r][c])
+    
+def add_uv(r, c, u, v):
+    u_matrix[r][c] = u
+    v_matrix[r][c] = v
+    u_lin.append(u)
+    v_lin.append(v)
+    interpolated_matrix[r][c] = 3
+    lon_lin.append(lon_matrix[r][c])
+    lat_lin.append(lat_matrix[r][c])
+
+# for average
+from statistics import mean
 
 # applying the interpolation
 def interpolation(d):
@@ -291,14 +277,21 @@ def interpolation(d):
             
             # if lon + lat has been interpolated
             if interpolated_matrix[r][c] == 2:
+                
+                l1 = []
+                l2 = []
+            
+                # for points that are close enough
+                if (check_next(r, c, l1, l2)):
+                    u_result = mean(l1)
+                    v_result = mean(l2)
+                    add_uv(r, c, u_result, v_result)
             
                 # add points if grid has been found
-                if get_grid(r, c, a):
-                    bilinear(u_matrix, u_interpolated, r, c, a)
-                    bilinear(v_matrix, v_interpolated, r, c, a)
-                    lon_interpolated.append(lon_matrix[r][c])
-                    lat_interpolated.append(lat_matrix[r][c])
-                    interpolated_matrix[r][c] = 3
+                elif get_grid(r, c, a):
+                    bilinear(u_matrix, u_bilin, r, c, a)
+                    bilinear(v_matrix, v_bilin, r, c, a)
+                    add_values(r, c)
 
 #interpolation(1)        
 interpolation(2)    
@@ -312,13 +305,9 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 # Intialize an empty subplot using cartopy
 fig, ax = plt.subplots(
-    figsize=(11, 8),
+    #figsize=(11, 8),
     subplot_kw=dict(projection=ccrs.Mercator())
 )
-
-# setting the extent
-extent = [-82.8, -78.3, 22.5, 26.1]
-ax.set_extent(extent)
 
 # import plotting stuff
 from matplotlib import colors
@@ -339,22 +328,28 @@ plt.title(f'{title}\n')
 offset = TwoSlopeNorm(vmin=-1, vcenter=0, vmax=1)
 
 # turning into numpy arrays (combine both)
-x = np.concatenate((lon_original, lon_interpolated)) 
-y = np.concatenate((lat_original, lat_interpolated)) 
-u = np.concatenate((u_original, u_interpolated))
-v = np.concatenate((v_original, v_interpolated)) 
+x = np.concatenate((lon_original, lon_lin, lon_bilin)) 
+y = np.concatenate((lat_original, lat_lin, lat_bilin)) 
+u = np.concatenate((u_original, u_lin, u_bilin))
+v = np.concatenate((v_original, v_lin, v_bilin)) 
+
+# setting the extent
+#extent = [-82.8, -78.3, 22.5, 26.1]
+extent = [x.min()-0.2, x.max()+0.2, y.min()-0.2, y.max()+0.2]
+ax.set_extent(extent)
 
 qargs = dict(scale=scale, headwidth=headwidth, headlength=headlength, headaxislength=headaxislength)
 qargs['transform'] = ccrs.PlateCarree()
 qargs['norm'] = offset
 
 # add color
-colors = np.concatenate([['c'] * len(lon_original), ['tomato'] * (len(lon_interpolated))])
+colors = np.concatenate([['c'] * len(u_original), ['tomato'] * len(u_lin), ['b'] * len(u_bilin)])
 
 # add legend
 import matplotlib.lines as mlines
 legend_lines = [mlines.Line2D([], [], color='c', lw=3, label='Original Data'), 
-                 mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Data')]
+                 mlines.Line2D([], [], color='tomato', lw=3, label='Interpolated Data'),
+                 mlines.Line2D([], [], color='b', lw=3, label='Bilinear Data')]
 
 # plot arrows
 q1 = ax.quiver(
