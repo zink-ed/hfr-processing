@@ -5,7 +5,7 @@ import os
 import xarray as xr
 
 # read in the data of a radial file
-radial_dir = './radials_clean/'
+radial_dir = './radials_clean/MARA/'
 
 # save directory
 save_dir = './post_int_images'
@@ -82,6 +82,27 @@ v_interpolated = []
 
 #g = int(input("Range: "))
 
+boundary = [0, 0, 0, 0]
+
+'''
+def bi_interpolate(dist, r, c):
+    for d in range(1, dist):
+        if interpolated_matrix[r - d][c] == 0:
+            boundary[0] = 1
+        if interpolated_matrix[r + d][c] == 0:
+            boundary[0] = 1
+        if interpolated_matrix[r][c - d] == 0:
+            boundary[0] = 1
+        if interpolated_matrix[r][c + d] == 0:
+            boundary[0] = 1           
+
+for r in range(rows):
+    for c in range(cols):
+        if interpolated_matrix[r][c] == 0:
+            bi_interpolate(dist, r, c)
+
+'''
+
 def interpolate(rdist, cdist, r, c):
     
     dist = max(rdist, cdist)
@@ -128,7 +149,7 @@ def interpolation_bearing(max_dist):
     for r in range(rows):
         dist = max_dist + 1
         for c in range(cols):
-            if interpolated_matrix[r][c] != 0:
+            if interpolated_matrix[r][c] == 1:
                 if dist <= max_dist and dist > 0:
                     interpolate(0, dist + 1, r, c)
                 dist = 0
@@ -139,16 +160,16 @@ def interpolation_range(max_dist):
     for c in range(cols):
         dist = max_dist + 1
         for r in range(rows):
-            if interpolated_matrix[r][c] != 0:
+            if interpolated_matrix[r][c] == 1:
                 if dist <= max_dist and dist > 0:
                     interpolate(dist + 1, 0, r, c)
                 dist = 0
             else:
                 dist = dist + 1     
                 
-interpolation_bearing(3)
+#interpolation_bearing(3)
 bearing_length = len(lon_interpolated)
-interpolation_range(3)                            
+#interpolation_range(3)                            
         
 # plotting from the matrix (to monitor progress)
 import matplotlib.pyplot as plt
