@@ -1,31 +1,27 @@
-import logging
 import datetime as dt
 from dateutil.relativedelta import relativedelta
-import math
 import numpy as np
 import xarray as xr
 import netCDF4
 import pandas as pd
-from pyproj import Geod
 from shapely.geometry import Point
 import geopandas as gpd
 import re
 import io
 import os
-from pathlib import Path
 from common import fileParser, addBoundingBoxMetadata
 from collections import OrderedDict
-from calc import true2mathAngle, dms2dd, evaluateGDOP, createLonLatGridFromBB, createLonLatGridFromBBwera, createLonLatGridFromTopLeftPointWera
-import json
+from calc import evaluateGDOP, createLonLatGridFromBB
 import fnmatch
 import warnings
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 
+
 class Total(fileParser):
     
     """
-    Totals Subclass.
+    Totals Subclass
 
     this class should be used when loading CODAR (.tuv) total files
     """
@@ -102,9 +98,9 @@ class Total(fileParser):
             
     
     def empty_total(self):
+        
         """
-        Create an empty Total object. The empty Total object can be created by setting 
-        the geographical grid.
+        create an empty Total object  by setting the geographical grid
         """
 
         self.file_path = ''
@@ -145,15 +141,13 @@ class Total(fileParser):
     def initialize_grid(self, gridGS):
         
         """
-        Initialize the geogprahic grid for filling the LOND and LATD columns of the 
-        Total object data DataFrame.
+        initialize the geogprahic grid for filling the LOND and LATD columns of the 
+        Total object data DataFrame
         
-        INPUT:
-            gridGS: GeoPandas GeoSeries containing the longitude/latitude pairs of all
-                the points in the grid
+        INPUT: gridGS = GeoPandas GeoSeries containing the longitude/latitude pairs of all
+               the points in the grid
                 
-        OUTPUT:
-            DataFrame with filled LOND and LATD columns.
+        OUTPUT: DataFrame with filled LOND and LATD columns
         """
         
         # initialize data DataFrame with column names
@@ -167,7 +161,9 @@ class Total(fileParser):
         self.metadata = OrderedDict()
         self.metadata['GreatCircle'] = ''.join(gridGS.crs.ellipsoid.name.split()) + ' ' + str(gridGS.crs.ellipsoid.semi_major_metre) + '  ' + str(gridGS.crs.ellipsoid.inverse_flattening)
         
+
         
+# plot - plot totals -----------------------------------------------------------
     def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True):
         
         """
@@ -182,64 +178,64 @@ class Total(fileParser):
         current velocity is produced. If 'shade' is True, a quiver plot with uniform vetor lenghts is produced,
         superimposed to a pseudo-color map representing velocity magnitude.
         
-        INPUT:
-            lon_min: minimum longitude value in decimal degrees (if None it is taken from Total metadata)
-            lon_max: maximum longitude value in decimal degrees (if None it is taken from Total metadata)
-            lat_min: minimum latitude value in decimal degrees (if None it is taken from Total metadata)
-            lat_max: maximum latitude value in decimal degrees (if None it is taken from Total metadata)
-            shade: boolean for enabling/disabling shade plot (default False)
-            show: boolean for enabling/disabling plot visualization (default True)
+        INPUT: lon_min = min lon value (decimal degrees)
+               lon_max = max lon value (decimal degrees)
+               lat_min = min lat value (decimal degrees)
+               lat_max = max lat value (decimal degrees)
+                 (if None it is taken from Total metadata)
+               shade = boolean for enabling/disabling shade plot (default False)
+               show = boolean for enabling/disabling plot visualization (default True)
             
         OUTPUT:
 
         """
-        # Initialize figure
-        #fig = plt.figure(figsize=(11, 8),tight_layout = {'pad': 0})
-        fig = plt.figure(figsize=(11, 8))
         
-        # Get the bounding box limits
+        # initialize figure
+        fig = plt.figure(figsize=(24, 16),tight_layout = {'pad': 0})
+        #fig = plt.figure()
+        
+        # get the bounding box limits
         if not lon_min:
             lon_min = self.data.LOND.min() - 1
-                
         if not lon_max:
             lon_max = self.data.LOND.max() + 1
-                
         if not lat_min:
-            lat_min = self.data.LATD.min() - 1
-                
+            lat_min = self.data.LATD.min() - 1 
         if not lat_max:
             lat_max = self.data.LATD.max() + 1   
                 
-        # Evaluate longitude and latitude of the center of the map
+        # evaluate lon and latof the center of the map
         lon_center = (lon_max + lon_min) / 2
         lat_center = (lat_max + lat_min) / 2
             
-        # Set the background map
+        # set the background map
         m = Basemap(llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max, urcrnrlat=lat_max, lon_0=lon_center, lat_0=lat_center, resolution = 'i', ellps='WGS84', projection='tmerc')        
         m.drawcoastlines()
         
-        # m.fillcontinents(color='#cc9955', lake_color='white')
+        m.fillcontinents(color='#cc9955', lake_color='white')
         m.fillcontinents()
         m.drawparallels(np.arange(lat_min,lat_max))
         m.drawmeridians(np.arange(lon_min,lon_max))
         m.drawmapboundary(fill_color='white')
         
-        # m.bluemarble()
+        m.bluemarble()
         
-        # Get station coordinates and codes
+        # get station coordinates and codes
         siteLon = self.site_source['Lon'].to_numpy()
         siteLat = self.site_source['Lat'].to_numpy()
         siteCode = self.site_source['Name'].tolist()
         
-        # Compute the native map projection coordinates for the stations
+        # compute the native map projection coordinates for the stations
         xS, yS = m(siteLon, siteLat)       
         
-        # Plot radial stations
+        print(siteCode)
+        
+        # plot radial stations
         m.plot(xS,yS,'rD')
         for label, xs, ys in zip(siteCode,xS,yS):
-            plt.text(xs,ys,label,fontdict={'fontsize': 22, 'fontweight' : 'bold'})
+            plt.text(xs,ys,label,fontdict={'fontsize': 16, 'fontweight' : 'bold'})
         
-        # Plot velocity field
+        # plot velocity field
         if shade:
             self.to_xarray_multidimensional()
             
@@ -459,9 +455,6 @@ class Total(fileParser):
         The generated xarray Dataset is attached to the Total object, named as xds.
         
         INPUT:
-            network_data: DataFrame containing the information of the network to which the radial site belongs
-            station_data: DataFrame containing the information of the radial site that produced the radial
-            version: version of the data model
             
             
         OUTPUT:
@@ -724,91 +717,57 @@ class Total(fileParser):
 
     
     def initialize_qc(self):
+        
         """
-        Initialize dictionary entry for QC metadata.
+        initialize dictionary entry for QC metadata
         """
-        # Initialize dictionary entry for QC metadta
+        
+        # initialize dictionary entry for QC metadta
         self.metadata['QCTest'] = {}
         
         
-    def qc_ehn_maximum_velocity(self, totMaxSpeed=1.2):
-        """
-        This test labels total velocity vectors whose module is smaller than a maximum velocity threshold 
-        with a “good data” flag. Otherwise the vectors are labeled with a “bad data” flag.
-        The ARGO QC flagging scale is used.
         
-        This test was defined in the framework of the EuroGOOS HFR Task Team based on the
-        Max Speed Threshold test (QC303) from the Integrated Ocean Observing System (IOOS) Quality Assurance of 
-        Real-Time Oceanographic Data (QARTOD).
         
-        INPUTS:
-            totMaxSpeed: maximum velocity in m/s for normal operations                     
+    # qc_ehn_data_density_threshold - QC301    
+    def qc_qartod_data_density_threshold(self, minContrRad=2):
+        
         """
-        # Set the test name
-        testName = 'CSPD_QC'
+        this test labels total velocity vectors with a number of contributing radial velocities bigger 
+        than the minimum number defined for normal operations with a “good data” flag
+        
+        INPUTS: minContrRad = min number of contributing radial velocities for normal operations                     
+        """
+        
+        # set the test name
+        testName = 'QC301'
         
         # Add new column to the DataFrame for QC data by setting every row as passing the test (flag = 1)
         self.data.loc[:,testName] = 1
     
         # set bad flag for velocities not passing the test
-        self.data.loc[(self.data['VELO'].abs() > totMaxSpeed*100), testName] = 4      # velocity in cm/s (LLUV)
+        if 'NRAD' in self.data.columns:
+            self.data.loc[(self.data['NRAD'] < minContrRad), testName] = 4
+            print("DATA DENSITY THRESHOLD")
     
-        self.metadata['QCTest'][testName] = 'Velocity Threshold QC Test - Test applies to each vector. ' \
-            + 'Threshold=[' + f'maximum velocity={totMaxSpeed} (m/s)]'
-            
-    def qc_ehn_maximum_variance(self, totMaxVar=1):
-        """
-        This test labels total velocity vectors whose temporal variances for both U and V
-        components are smaller than a maximum variance threshold with a “good data” flag. 
-        Otherwise the vectors are labeled with a “bad data” flag.
-        The ARGO QC flagging scale is used.
+        self.metadata['QCTest'][testName] = 'Data Density Threshold QC Test - Test applies to each vector. ' \
+            + 'Threshold=[' + f'minimum number of contributing radial velocities={minContrRad}]'
         
-        This test was defined in the framework of the EuroGOOS HFR Task Team based on the
-        U Component Uncertainty and V Component Uncertainty tests (QC306 and QC307) from the
-        Integrated Ocean Observing System (IOOS) Quality Assurance of Real-Time Oceanographic 
-        Data (QARTOD).
-        
-        This test is NOT RECOMMENDED for CODAR data because the parameter defining the variance
-        is computed at each time step, and therefore considered not statistically solid 
-        (as documented in the fall 2013 CODAR Currents Newsletter).
-        
-        INPUTS:
-            totMaxVar: maximum variance in m2/s2 for normal operations                     
-        """
-        # Set the test name
-        testName = 'VART_QC'
     
-        # Add new column to the DataFrame for QC data by setting every row as passing the test (flag = 1)
-        self.data.loc[:,testName] = 1
     
-        # Set bad flag for variances not passing the test
-        if self.is_wera and not self.is_combined:
-            self.data.loc[(self.data['UACC']**2 > totMaxVar), testName] = 4             # UACC is the temporal standard deviation of U component in m/s for WERA non-combined total data
-            self.data.loc[(self.data['VACC']**2 > totMaxVar), testName] = 4             # VACC is the temporal standard deviation of V component in m/s for WERA non-combined total data
-        else:
-            self.data.loc[((self.data['UQAL']/100)**2 > totMaxVar), testName] = 4       # UQAL is the temporal standard deviation of U component in cm/s for CODAR and combined total data
-            self.data.loc[((self.data['VQAL']/100)**2 > totMaxVar), testName] = 4       # VQAL is the temporal standard deviation of V component in cm/s for CODAR and combined total data
-    
-        self.metadata['QCTest'][testName] = 'Variance Threshold QC Test - Test applies to each vector. ' \
-            + 'Threshold=[' + f'maximum variance={totMaxVar} (m2/s2)]'
+        # qc_ehn_threshold - QC302    
+    def qc_qartod_gdop_threshold(self, maxGDOP=2):
         
-    def qc_ehn_gdop_threshold(self, maxGDOP=2):
         """
-        This test labels total velocity vectors whose GDOP is smaller than a maximum GDOP threshold 
-        with a “good data” flag. Otherwise the vectors are labeled with a “bad data” flag.
-        The ARGO QC flagging scale is used.
+        this test labels total velocity vectors whose GDOP is smaller than a maximum GDOP threshold 
+        with a “good data” flag
         
-        This test was defined in the framework of the EuroGOOS HFR Task Team based on the
-        GDOP Threshold test (QC302) from the Integrated Ocean Observing System (IOOS) Quality Assurance of 
-        Real-Time Oceanographic Data (QARTOD).
-        
-        INPUTS:
-            maxGDOP: maximum allowed GDOP for normal operations                     
+        INPUTS: maxGDOP = maximum allowed GDOP for normal operations                     
         """
-        # Set the test name
-        testName = 'GDOP_QC'
         
-        # Add new column to the DataFrame for QC data by setting every row as passing the test (flag = 1)
+        # set the test name
+        testName = 'QC302'
+        
+        # add new column to the DataFrame, set every row as passing the test (flag = 1)
         self.data.loc[:,testName] = 1
     
         # set bad flag for velocities not passing the test
@@ -817,52 +776,91 @@ class Total(fileParser):
         self.metadata['QCTest'][testName] = 'GDOP Threshold QC Test - Test applies to each vector. ' \
             + 'Threshold=[' + f'GDOP threshold={maxGDOP}]'
         
-    def qc_ehn_data_density_threshold(self, minContrRad=2):
-        """
-        This test labels total velocity vectors with a number of contributing radial velocities bigger 
-        than the minimum number defined for normal operations with a “good data” flag. 
-        Otherwise the vectors are labeled with a “bad data” flag.
-        The ARGO QC flagging scale is used.
+     
+     
         
-        This test was defined in the framework of the EuroGOOS HFR Task Team based on the
-        Data Density Threshold test (QC301) from the Integrated Ocean Observing System (IOOS) Quality Assurance of 
-        Real-Time Oceanographic Data (QARTOD).
+    # qc_ehn_maximum_velocity - QC303    
+    def qc_qartod_maximum_velocity(self, maxSpeed=250):
         
-        INPUTS:
-            minContrRad: minimum number of contributing radial velocities for normal operations                     
         """
-        # Set the test name
-        testName = 'DDNS_QC'
+        this test labels total velocity vectors whose module is smaller than a maximum velocity threshold 
+        with a “good data” flag
+        
+        INPUTS: maxSpeed = maximum velocity in m/s for normal operations                     
+        """
+        
+        # set the test name
+        testName = "QC303"
+        
+        # make sure VELO is float
+        self.data["VELO"] = self.data["VELO"].astype(float)
         
         # Add new column to the DataFrame for QC data by setting every row as passing the test (flag = 1)
         self.data.loc[:,testName] = 1
     
         # set bad flag for velocities not passing the test
-        if 'NRAD' in self.data.columns:
-            self.data.loc[(self.data['NRAD'] < minContrRad), testName] =4
+        self.data.loc[(self.data['VELO'].abs() > maxSpeed), testName] = 4
     
-        self.metadata['QCTest'][testName] = 'Data Density Threshold QC Test - Test applies to each vector. ' \
-            + 'Threshold=[' + f'minimum number of contributing radial velocities={minContrRad}]'
+        self.metadata['QCTest'][testName] = 'Velocity Threshold QC Test - Test applies to each vector. ' \
+            + 'Threshold=[' + f'maximum velocity={maxSpeed} (cm/s)]'
+
+       
+    # QC304
+    def qc_qartod_spatial_median(self, dx, dy, range_limit=10, angular_limit=10, diff=30):
         
-    def qc_ehn_temporal_derivative(self, t0, tempDerThr=1):
+        testName = 'QC304'
+        
+        self.data.loc[:,testName] = 1
+        
+        print(self.data)
+        
+        velo = self.data['VELO']
+        print(type(velo))
+        print(velo)
+        diffcol = self.data['VELO'].to_numpy() + np.nan
+        print(diffcol)
+        
+        # gotta do dy first bc of the reshape system (rows are lon and cols are lat)
+        #velo.reshape((dy, dx))
+        #print(velo)
+        #diffcol.reshape((dy, dx))
+        
+        '''
+        padded = np.pad(velo, pad_width=((1, 1), (1, 1)), mode='constant', constant_values=np.nan)
+
+        for row in range(1, dx + 1):
+            for col in range(1, dy + 1):
+                temp = padded[row - 1: row + 2, col - 1: col + 2]
+                median = np.nanmedian(temp)
+                diffcol[row - 1, col - 1] = velo[row - 1, col - 1] - median
+        
+        diffcol.flatten()
+        
+        boolean = diffcol.abs() > diff
+        
+        
+        self.data[testName] = self.data[testName].where(~boolean, other=4)
+        self.metadata['QCTest'][testName] = 'Spatial Median QC Test - Test applies to each vector. ' \
+            + 'Thresholds=[' + f'range_cell_limit={str(smed_range_cell_limit)} (range cells) ' \
+            + f'angular_limit={str(smed_angular_limit)} (degrees) ' \
+            + f'current_difference={str(smed_current_difference)} (cm/s)]'
+        '''
+    
+    # qc_ehn_temporal_derivative - QC206    
+    def qc_qartod_temporal_derivative(self, t0, tempDerThr=100):
+        
         """
-        This test compares the velocity of each total vector with the velocity of the total vector 
+        this test compares the velocity of each total vector with the velocity of the total vector 
         measured in the previous timestamp at the same location.
         Each vector for which the velocity difference is smaller than the specified threshold for normal 
         operations (tempDerThr), is labeled with a "good data" flag.
-        Otherwise the vector is labeled with a “bad data” flag.
-        The ARGO QC flagging scale is used.
         
-        This test was defined in the framework of the EuroGOOS HFR Task Team based on the 
-        Temporal Gradient test (QC206) from the Integrated Ocean Observing System (IOOS) Quality 
-        Assurance of Real-Time Oceanographic Data (QARTOD).
-        
-        INPUTS:
-            t0: Total object of the previous timestamp
-            tempDerThr: velocity difference threshold in m/s for normal operations
+        INPUTS: t0 = Total object of the previous timestamp
+                tempDerThr = velocity difference threshold in m/s for normal operations
         """
+        
         # Set the test name
-        testName = 'VART_QC'
+        testName = 'QC206'
         
         # Check if the previous timestamp total file exists
         if not t0 is None:
@@ -877,43 +875,49 @@ class Total(fileParser):
             self.data.loc[mergedDF['Exist'] == 'left_only', testName] = 0
 
             # Set bad flag for vectors not passing the test
-            if self.is_wera:
-                self.data.loc[(velDiff > tempDerThr), testName] = 4             # velocity in m/s (CUR)
-            else:
-                self.data.loc[(velDiff > tempDerThr*100), testName] = 4         # velocity in cm/s (LLUV)
+            self.data.loc[(velDiff > tempDerThr), testName] = 4         # velocity in cm/s (LLUV)
 
         else:
             # Add new column to the DataFrame for QC data by setting every row as not evaluated (flag = 0)
             self.data.loc[:,testName] = 0
         
         self.metadata['QCTest'][testName] = 'Temporal Derivative QC Test - Test applies to each vector. ' \
-            + 'Threshold=[' + f'velocity difference threshold={str(tempDerThr)} (m/s)]'
+            + 'Threshold=[' + f'velocity difference threshold={str(tempDerThr)} (cm/s)]'
+ 
+    
+    # qc_ehn_overall_qc_flag    
+    def qc_qartod_primary_flag(self, erase=False):
         
-    def qc_ehn_overall_qc_flag(self):
         """
+        this QC test labels total velocity vectors with a ‘good_data” flag if all QC tests are passed
         
-        This QC test labels total velocity vectors with a ‘good_data” flag if all QC tests are passed.
-        Otherwise, the vectors are labeled with a “bad_data” flag.
-        The ARGO QC flagging scale is used.
-        
-        INPUTS:
+        INPUTS: erase = if True, then it will remove data with a bad flag
             
-        
         """
+        
         # Set the test name
-        testName = 'QCflag'
+        testName = 'PRIM'
         
         # Add new column to the DataFrame for QC data by setting every row as not passing the test (flag = 4)
-        self.data.loc[:,testName] = 4
+        self.data[testName] = 4
         
         # Set good flags for vectors passing all QC tests
-        self.data.loc[self.data.loc[:, self.data.columns.str.contains('_QC')].eq(1).all(axis=1), testName] = 1
+        self.data.loc[self.data.loc[:, self.data.columns.str.contains('QC')].eq(1).all(axis=1), testName] = 1
 
         self.metadata['QCTest'][testName] = 'Overall QC Flag - Test applies to each vector. Test checks if all QC tests are passed.'
-
+        
+        if erase:
+            indexes = self.data[self.data['PRIM'] == 4].index
+            self.data.drop(indexes, inplace=True)
+            self.data.reset_index(level=None, drop=False, inplace=True)
+            print("ERASED")
+             
 
     def file_type(self):
         """
         Return a string representing the type of file this is.
         """
         return 'totals'
+        
+        
+        

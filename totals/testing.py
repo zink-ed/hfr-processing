@@ -7,17 +7,19 @@ from totals import Total
 
 # read in the data of a radial file
 radial_dir1 = '../radials_clean/MARA/'
-radial_dir2 = '../radials_clean/KEYWEST/'
+radial_dir2 = '../radials_clean/WEST/'
+radial_dir3 = '../radials_clean/JEFF/'
 
 import glob
 import os
 
 # search for radial files
-files1 = sorted(glob.glob(os.path.join(radial_dir1, '*.ruv')))
-files2 = sorted(glob.glob(os.path.join(radial_dir2, '*.ruv')))
+#files1 = sorted(glob.glob(os.path.join(radial_dir1, '*.ruv')))
+#files2 = sorted(glob.glob(os.path.join(radial_dir2, '*.ruv')))
+#files3 = sorted(glob.glob(os.path.join(radial_dir3, '*.ruv')))
 
-r1 = Radial(radial_dir1 + 'RDLm_MARA_2024_04_16_1600.ruv')
-r2 = Radial(radial_dir2 + 'RDLm_WEST_2024_04_16_1600.ruv')
+#r1 = Radial(radial_dir1 + 'RDLm_MARA_2024_04_16_1600.ruv')
+#r2 = Radial(radial_dir2 + 'RDLm_WEST_2024_04_16_1600.ruv')
 
 #r1.to_xarray_multidimensional()
 #r2.to_xarray_multidimensional()
@@ -27,9 +29,9 @@ r2 = Radial(radial_dir2 + 'RDLm_WEST_2024_04_16_1600.ruv')
 
 # SELECT RADIALS
 
-rDF = pd.DataFrame(columns=['Radial'])
+#rDF = pd.DataFrame(columns=['Radial'])
 
-
+from plotting import plot_cartopy
 
 # ----------------------------- FUNCTIONS --------------------------------------
 
@@ -97,23 +99,26 @@ def createGrid(lonMin, lonMax, latMin, latMax, gridRes):
         Lon[Lon > 180] = Lon[Lon > 180] - 360
         
     # create grid
+    #print(Lon.shape)
+    length = len(Lon)
+    #print(Lat.shape)
+    width = len(Lat)
     Lon, Lat = np.meshgrid(Lon, Lat);
+    #print(Lon.shape)
+    #print(Lat.shape)
     Lonc = Lon.flatten()
     Latc = Lat.flatten()
+    #print(Lonc.shape)
+    #print(Latc.shape)
     
     # convert these points to geo-data
     pts = GeoSeries([Point(x, y) for x, y in zip(Lonc, Latc)])
     pts = pts.set_crs('epsg:4326')
     
-    return pts
+    return pts, length, width
     
 # testing function
-lon_min = min(r1.data.LOND.min(), r2.data.LOND.min())
-lon_max = max(r1.data.LOND.max(), r2.data.LOND.max())
-lat_min = min(r1.data.LATD.min(), r2.data.LATD.min())
-lat_max = max(r1.data.LATD.max(), r2.data.LATD.max())
-gridRes = 3000
-grid = createGrid(lon_min, lon_max, lat_min, lat_max, gridRes)
+#grid = createGrid(lon_min, lon_max, lat_min, lat_max, gridRes)
 #print(grid)
 
 
@@ -209,6 +214,11 @@ def selectRadials(paths, time):
     
     #print(files)
     
+    lon_min = []
+    lon_max = []
+    lat_min = []
+    lat_max = []
+    
     # list all radial files                
     for f in files:
         
@@ -220,6 +230,11 @@ def selectRadials(paths, time):
         radial = Radial(f)
         timeStamp = radial.time.strftime("%Y %m %d %H %M %S")                    
         dateTime = radial.time.strftime("%Y-%m-%d %H:%M:%S")  
+        
+        lon_min.append(radial.data.LOND.min())
+        lon_max.append(radial.data.LOND.max())
+        lat_min.append(radial.data.LATD.min())
+        lat_max.append(radial.data.LATD.max())
 
         # prepare data to be inserted into the output DataFrame
         dataRadial = {'filename': [fileName], 'filepath': [filePath], 'timestamp': [timeStamp], 'datetime': [dateTime]}
@@ -228,12 +243,69 @@ def selectRadials(paths, time):
         
         # insert into the output DataFrame
         radialsTBP = pd.concat([radialsTBP, dfRadial], ignore_index=True)
+        
+    gridRes = 3000
+    bb = [min(lon_min), max(lon_max), min(lat_min), max(lat_max), gridRes]
     
-    return radialsTBP
+    return radialsTBP, bb
 
 # testing
-rDF = selectRadials([radial_dir1, radial_dir2], '2024_04_16_1600')
-print(rDF)
+#rDF, bb = selectRadials([radial_dir1, radial_dir2, radial_dir3], '2024_04_16_1600')
+#print(rDF)
+#print(bb)
+
+
+
+
+# qc_radial-file
+def applyQC(T, dx, dy):
+    
+    """
+    this function applies QC procedures to Total object
+    
+    INPUTS: qcTot = Series containing the total to be processed with the related information
+    T = total to be processed
+        
+    OUTPUTS: T = processed Total object
+        
+    """
+        
+    # Get the total object
+    #T = qcTot['Total']
+    
+    # Check if Total object contains data
+    if T.data.empty:
+        print('total file is empty: no QC test applied')
+        return T
+        
+    # initialize QC metadata
+    T.initialize_qc()
+    
+    # DDNS
+    T.qc_qartod_data_density_threshold()
+    
+    # CSPD
+    T.qc_qartod_maximum_velocity()
+
+    # Temporal Gradient
+    '''
+    prevHourTime = T.time-dt.timedelta(minutes=networkData.iloc[0]['temporal_resolution'])
+    prevHourFileName = buildEHNtotalFilename(networkData.iloc[0]['network_id'],prevHourTime,'.ttl')
+    prevHourTotFile = prevHourFolderPath + prevHourFileName     # previous hour total file
+    if os.path.exists(prevHourTotFile):
+        with open(prevHourTotFile, 'rb') as ttlFile:
+            t0 = pickle.load(ttlFile)
+    '''
+    
+    # GDOP
+    T.qc_qartod_gdop_threshold()
+    
+    #T.qc_qartod_spatial_median(dx, dy)
+
+    # Overall QC
+    T.qc_qartod_primary_flag(True)
+    
+    return T
 
 ################################################################################
 
@@ -285,6 +357,41 @@ def processRadials(rads):
     return
 
 '''
+
+# processTotals
+def processTotals(dfTot):
+    
+    """
+    this function processes the input total files and applies QC
+    
+    INPUTS: dfTot = DataFrame containing the totals to be processed grouped by timestamp
+                    for the input network with the related information
+
+    OUTPUTS:
+        
+    """
+
+    # Add Total objects to the DataFrame
+    dfTot['Total'] = (dfTot.filepath + '/' + dfTot.filename).apply(lambda x: Total(x))
+    
+    '''
+    # Add metadata related to bounding box
+    lonMin = networkData.iloc[0]['geospatial_lon_min']
+    lonMax = networkData.iloc[0]['geospatial_lon_max']
+    latMin = networkData.iloc[0]['geospatial_lat_min']
+    latMax = networkData.iloc[0]['geospatial_lat_max']
+    gridRes = networkData.iloc[0]['grid_resolution']
+    dfTot['Total'] = dfTot['Total'].apply(lambda x: addBoundingBoxMetadata(x,lonMin,lonMax,latMin,latMax,gridRes))
+    '''    
+    
+    # apply QC to Totals
+    dfTot['Total'] = dfTot.apply(lambda x: applyQC(x), axis=1)
+          
+    # Convert Total to standard data format (netCDF)
+    #dfTot = dfTot.apply(lambda x: applyEHNtotalDataModel(x,networkData,stationData,vers,logger),axis=1) 
+    
+    return
+
 
 ################################################################################
 
@@ -340,27 +447,33 @@ def combineRadials(rDF, grid, search, gRes, tStp):
 
     # create empty total with grid
     Tcomb = Total(grid=grid)
+    print(Tcomb.data.shape)
+    
     
     processRadials(rDF)
+    
+    # add Total objects to the DataFrame
+    rDF['Total'] = (rDF.filepath + '/' + rDF.filename).apply(lambda x: Total(x))
 
     # fill site_source DataFrame with contributing radials information
     siteNum = 0    # initialization of site number
     for index, row in rDF.iterrows():
-        print(index)
-        print(row)
+        #print(index)
+        #print(row)
 
         siteNum = siteNum + 1
         rad = row['Radial']
         thisRadial = pd.DataFrame(index=[index], columns=['#', 'Name', 'Lat', 'Lon', 'Coverage(s)', 'RngStep(km)', 'Pattern', 'AntBearing(NCW)'])
         thisRadial['#'] = siteNum
-        thisRadial['Name'] = index
+        thisRadial['Name'] = (rad.metadata['Site'].split()[0])
         thisRadial['Lat'] = float(rad.metadata['Origin'].split()[0])
         thisRadial['Lon'] = float(rad.metadata['Origin'].split()[1])
         thisRadial['Coverage(s)'] = float(rad.metadata['TimeCoverage'].split()[0])
         thisRadial['RngStep(km)'] = float(rad.metadata['RangeResolutionKMeters'].split()[0])
         thisRadial['Pattern'] = rad.metadata['PatternType'].split()[0]
         thisRadial['AntBearing(NCW)'] = float(rad.metadata['AntennaBearing'].split()[0])
-    Tcomb.site_source = pd.concat([Tcomb.site_source, thisRadial])
+        Tcomb.site_source = pd.concat([Tcomb.site_source, thisRadial])
+    print(Tcomb.site_source)
             
     # insert timestamp
     Tcomb.time = tStp
@@ -383,8 +496,6 @@ def combineRadials(rDF, grid, search, gRes, tStp):
         rad = row['Radial']         
         thisRadBins = Tcomb.data.loc[:,['LOND','LATD']].apply(lambda x: findBins(x, rad, search, g), axis=1)
         combineRadBins.loc[index] = thisRadBins
-      
-    #print(Tcomb)
     
 
     # loop over grid points and pull out contributing radial vectors
@@ -396,19 +507,12 @@ def combineRadials(rDF, grid, search, gRes, tStp):
 
     # fill Total with combination results
     Tcomb.data[['VELU', 'VELV','VELO','HEAD','UQAL','VQAL','CQAL','GDOP','NRAD']] = totData
-    
  
     # mask out vectors on land
     #Tcomb.mask_over_land(subset=True)
     
-    # get the indexes of grid cells without total vectors
-    indexNoVec = Tcomb.data[Tcomb.data['VELU'].isna()].index
-    
-    # delete these row indexes from DataFrame
-    Tcomb.data.drop(indexNoVec, inplace=True)
-    Tcomb.data.reset_index(level=None, drop=False, inplace=True)    
-        # Set drop=True if the former indices are not necessary
-        
+    #Tcomb = processTotals(Tcomb)
+      
     return Tcomb
 
 
@@ -470,7 +574,7 @@ def totalLeastSquare(velDF):
             v = np.nan
             cov = np.nan
             covGDOP = np.nan
-            return u, v, C, covGDOP
+            return u, v, cov, covGDOP
     
     else:
         u = np.nan
@@ -565,33 +669,9 @@ def makeTotalVector(rBins, rDF):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import datetime as dt
 
-bb = [lon_min, lon_max, lat_min, lat_max, gridRes]
+#bb = [lon_min, lon_max, lat_min, lat_max, gridRes]
 
 
 # performRadialCombination - combine radials into totals
@@ -615,7 +695,8 @@ def performRadialCombination(combRad, bb):
     combTot = pd.DataFrame(columns=['Total'])
     
     # create the geographical grid
-    grid = createGrid(bb[0], bb[1], bb[2], bb[3], bb[4])
+    grid, dx, dy = createGrid(bb[0], bb[1], bb[2], bb[3], bb[4])
+    #print(grid)
     
     # get the combination search radius in meters
     #searchRadius = networkData.iloc[0]['combination_search_radius'] * 1000
@@ -627,7 +708,17 @@ def performRadialCombination(combRad, bb):
     # generate the combined Total
     T = combineRadials(combRad, grid, searchRadius, bb[4], timeStamp)
  
- 
+    T = applyQC(T, dx, dy)
+    
+    #T = processTotals(T)
+    
+    # get the indexes of grid cells without total vectors
+    indexNoVec = T.data[T.data['VELU'].isna()].index
+    
+    # delete these row indexes from DataFrame
+    T.data.drop(indexNoVec, inplace=True)
+    T.data.reset_index(level=None, drop=False, inplace=True)    
+    # Set drop=True if the former indices are not necessary
     
     # add metadata related to bounding box
     #T = addBoundingBoxMetadata(T, lonMin, lonMax, latMin, latMax, gridResolution / 1000)
@@ -635,8 +726,11 @@ def performRadialCombination(combRad, bb):
     # update is_combined attribute
     #T.is_combined = True
     
-    print(T)
+    print(T.data)
+    
+    #print(T)
     T.plot()
+    #plot_cartopy(T)
     
     # add the Total object to the DataFrame
     combTot = pd.concat([combTot, pd.DataFrame([{'Total': T}])])
@@ -650,9 +744,8 @@ def performRadialCombination(combRad, bb):
 
 
 # testing
-T = performRadialCombination(rDF, bb)
-
-print(T)
+#T = performRadialCombination(rDF, bb)
+#print(T)
 
 
 
@@ -665,12 +758,18 @@ print(T)
 
 # ok, I can now proceed to call functions
 
+# get the radial dataframe and bounding box info for grid
+rDF, bb = selectRadials([radial_dir1, radial_dir2, radial_dir3], '2024_04_16_1600')
+print(rDF)
+print(bb)
 
+# calls the functions to turn the radials into a total and also plots the total
+T = performRadialCombination(rDF, bb)
 
+#grid, length, width = createGrid(bb[0], bb[1], bb[2], bb[3], bb[4])
+#print(grid)
 
-
-
-
+#T = combineRadials(combRad, grid, searchRadius, bb[4], timeStamp)
 
 
 
