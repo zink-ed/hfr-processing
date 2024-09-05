@@ -806,45 +806,46 @@ class Total(fileParser):
 
        
     # QC304
-    def qc_qartod_spatial_median(self, dx, dy, range_limit=10, angular_limit=10, diff=30):
+    def qc_qartod_spatial_median(self, dx, dy, limit = 2, diff=25):
         
         testName = 'QC304'
         
         self.data.loc[:,testName] = 1
         
-        print(self.data)
+        #print(dx)
+        #print(dy)
         
-        velo = self.data['VELO']
-        print(type(velo))
-        print(velo)
+        velo = self.data['VELO'].to_numpy()
+        #print(velo.shape)
         diffcol = self.data['VELO'].to_numpy() + np.nan
-        print(diffcol)
         
-        # gotta do dy first bc of the reshape system (rows are lon and cols are lat)
-        #velo.reshape((dy, dx))
-        #print(velo)
-        #diffcol.reshape((dy, dx))
+        velo = velo.reshape((dx, dy))
+        #print(velo.shape)
+        diffcol = diffcol.reshape((dx, dy))
         
-        '''
-        padded = np.pad(velo, pad_width=((1, 1), (1, 1)), mode='constant', constant_values=np.nan)
+        
+        padded = np.pad(velo, pad_width=((limit, limit), (limit, limit)), mode='constant', constant_values=np.nan)
+        diffcol = np.pad(velo, pad_width=((limit, limit), (limit, limit)), mode='constant', constant_values=np.nan)
+        #print(padded.shape)
 
-        for row in range(1, dx + 1):
-            for col in range(1, dy + 1):
-                temp = padded[row - 1: row + 2, col - 1: col + 2]
+        for row in range(limit, dx + limit):
+            for col in range(limit, dy + limit):
+                temp = padded[row - limit: row + limit + 1, col - limit: col + limit + 1]
                 median = np.nanmedian(temp)
-                diffcol[row - 1, col - 1] = velo[row - 1, col - 1] - median
+                diffcol[row][col] = padded[row][col] - median
         
-        diffcol.flatten()
+        diffcol = diffcol[limit:-limit, limit:-limit]
+        diffcol = diffcol.flatten()
         
-        boolean = diffcol.abs() > diff
+        boolean = np.abs(diffcol) > diff
         
         
         self.data[testName] = self.data[testName].where(~boolean, other=4)
+        
+        print(self.data[self.data[testName] == 4])
         self.metadata['QCTest'][testName] = 'Spatial Median QC Test - Test applies to each vector. ' \
-            + 'Thresholds=[' + f'range_cell_limit={str(smed_range_cell_limit)} (range cells) ' \
-            + f'angular_limit={str(smed_angular_limit)} (degrees) ' \
-            + f'current_difference={str(smed_current_difference)} (cm/s)]'
-        '''
+            + 'Thresholds=[' + f'current_difference={str(diff)} (cm/s)]'
+        
     
     # qc_ehn_temporal_derivative - QC206    
     def qc_qartod_temporal_derivative(self, t0, tempDerThr=100):
@@ -905,6 +906,8 @@ class Total(fileParser):
         self.data.loc[self.data.loc[:, self.data.columns.str.contains('QC')].eq(1).all(axis=1), testName] = 1
 
         self.metadata['QCTest'][testName] = 'Overall QC Flag - Test applies to each vector. Test checks if all QC tests are passed.'
+        
+        #print(self.data)
         
         if erase:
             indexes = self.data[self.data['PRIM'] == 4].index
