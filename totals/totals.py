@@ -16,6 +16,7 @@ import fnmatch
 import warnings
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
+from geopandas import GeoSeries
 
 
 class Total(fileParser):
@@ -109,6 +110,7 @@ class Total(fileParser):
         self.metadata = ''
         self._iscorrupt = False
         self.time = []
+        self.grid = GeoSeries()
 
         for key in self._tables.keys():
             table = self._tables[key]
@@ -164,7 +166,7 @@ class Total(fileParser):
 
         
 # plot - plot totals -----------------------------------------------------------
-    def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True):
+    def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True, save=False, interpolated=False):
         
         """
         this function plots the current total velocity field (VELU and VELV components) on a 
@@ -237,7 +239,7 @@ class Total(fileParser):
         
         # plot velocity field
         if shade:
-            self.to_xarray_multidimensional()
+            self.to_xarray()
             
             # Create grid from longitude and latitude
             [longitudes, latitudes] = np.meshgrid(self.xdr['LONGITUDE'].data, self.xdr['LATITUDE'].data)
@@ -287,6 +289,19 @@ class Total(fileParser):
         if show:
             plt.show()
         
+        save_dir = '../total_images/'
+        photo_name = self.file_name + '.png'
+            
+        if interpolated:
+            print("INTERPOLATED")
+            save_dir = save_dir + 'interpolated/'
+            
+        if save:
+            print("SAVE")
+            print(save_dir)
+            print(photo_name)
+            fig.savefig(save_dir + photo_name)
+        
         return fig
         
         
@@ -317,29 +332,31 @@ class Total(fileParser):
         
         # initialize empty dictionary
         xdr = OrderedDict()
-            
+        
+        '''    
         # longitude limits   
         if lon_min is None:
-            lon_min = Total.data.LOND.min()
+            lon_min = self.data.LOND.min()
         if lon_max is None:
-            lon_max = Total.data.LOND.max()
+            lon_max = self.data.LOND.max()
                 
         # latitude limits   
         if lat_min is None:
-            lat_min = Total.data.LATD.min()
+            lat_min = self.data.LATD.min()
         if lat_max is None:
-            lat_max = Total.data.LATD.max()       
+            lat_max = self.data.LATD.max()       
                 
         # grid resolution
         if grid_res is None:                
-            grid_res = float(1000)            
+            grid_res = float(3000)            
                 
         # generate grid coordinates
         gridGS = createGrid(lon_min, lon_max, lat_min, lat_max, grid_res)
+        '''   
                          
         # extract lons and lats from grid GeoSeries and insert them into numpy arrays
-        lon_dim = np.unique(gridGS.x.to_numpy())
-        lat_dim = np.unique(gridGS.y.to_numpy())
+        lon_dim = np.unique(self.grid.x.to_numpy())
+        lat_dim = np.unique(self.grid.y.to_numpy())
         
         # manage antimeridian crossing
         lon_dim = np.concatenate((lon_dim[lon_dim >= 0],lon_dim[lon_dim < 0]))         
