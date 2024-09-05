@@ -5,41 +5,24 @@ import numpy as np
 from radials import Radial
 from totals import Total
 
+
 # read in the data of a radial file
 radial_dir1 = '../radials_clean/MARA/'
 radial_dir2 = '../radials_clean/WEST/'
 radial_dir3 = '../radials_clean/JEFF/'
 
-import glob
-import os
-
-# search for radial files
-#files1 = sorted(glob.glob(os.path.join(radial_dir1, '*.ruv')))
-#files2 = sorted(glob.glob(os.path.join(radial_dir2, '*.ruv')))
-#files3 = sorted(glob.glob(os.path.join(radial_dir3, '*.ruv')))
-
-#r1 = Radial(radial_dir1 + 'RDLm_MARA_2024_04_16_1600.ruv')
-#r2 = Radial(radial_dir2 + 'RDLm_WEST_2024_04_16_1600.ruv')
-
-#r1.to_xarray_multidimensional()
-#r2.to_xarray_multidimensional()
-
-#r1.plot()
-#r2.plot()
-
-# SELECT RADIALS
-
-#rDF = pd.DataFrame(columns=['Radial'])
-
 from plotting import plot_cartopy
 
-# ----------------------------- FUNCTIONS --------------------------------------
+
+
+
+############################### FUNCTIONS ######################################
 
 from pyproj import Geod
 from shapely.geometry import Point
 from geopandas import GeoSeries
 
-# createLonLatGridFromBB - creating grid of lon / lat coordinates --------------
+# createLonLatGridFromBB - creating grid of lon / lat coordinates ##############
 def createGrid(lonMin, lonMax, latMin, latMax, gridRes):
     
     """ 
@@ -99,17 +82,11 @@ def createGrid(lonMin, lonMax, latMin, latMax, gridRes):
         Lon[Lon > 180] = Lon[Lon > 180] - 360
         
     # create grid
-    #print(Lon.shape)
     length = len(Lon)
-    #print(Lat.shape)
     width = len(Lat)
     Lon, Lat = np.meshgrid(Lon, Lat);
-    #print(Lon.shape)
-    #print(Lat.shape)
     Lonc = Lon.flatten()
     Latc = Lat.flatten()
-    #print(Lonc.shape)
-    #print(Latc.shape)
     
     # convert these points to geo-data
     pts = GeoSeries([Point(x, y) for x, y in zip(Lonc, Latc)])
@@ -117,14 +94,8 @@ def createGrid(lonMin, lonMax, latMin, latMax, gridRes):
     
     return pts, length, width
     
-# testing function
-#grid = createGrid(lon_min, lon_max, lat_min, lat_max, gridRes)
-#print(grid)
 
-
-
-
-# true2mathAngle - convert angles from true to math ----------------------------
+# true2mathAngle - convert angles from true to math ############################
 def convertAngle(trueAngle, radians=False):
     
     """
@@ -152,7 +123,6 @@ def convertAngle(trueAngle, radians=False):
 
 
 
-
 '''
 def buildTotal():
 
@@ -173,18 +143,12 @@ def createTotal():
 
 
 
-
-
-
-
-
-
-################################################################################
+#-------------------------------------------------------------------------------
 
 import glob
 import os
 
-# selectRadials - create DataFrame of radial files to be combined --------------
+# selectRadials - create DataFrame of radial files to be combined ##############
 def selectRadials(paths, time):
     
     """
@@ -244,15 +208,13 @@ def selectRadials(paths, time):
         # insert into the output DataFrame
         radialsTBP = pd.concat([radialsTBP, dfRadial], ignore_index=True)
         
-    gridRes = 3000
+    gridRes = 3000      # in meters
     bb = [min(lon_min), max(lon_max), min(lat_min), max(lat_max), gridRes]
     
     return radialsTBP, bb
 
-# testing
-#rDF, bb = selectRadials([radial_dir1, radial_dir2, radial_dir3], '2024_04_16_1600')
-#print(rDF)
-#print(bb)
+
+
 
 
 
@@ -263,17 +225,18 @@ def applyQC(T, dx, dy):
     """
     this function applies QC procedures to Total object
     
-    INPUTS: qcTot = Series containing the total to be processed with the related information
-    T = total to be processed
+    INPUTS: T = total to be processed
+            dx = lon limits for spatial median test
+            dy = lat limits for spatial median test
         
     OUTPUTS: T = processed Total object
         
     """
         
-    # Get the total object
+    # get the total object (for when I was passing in a dataframe)
     #T = qcTot['Total']
     
-    # Check if Total object contains data
+    # check if Total object contains data
     if T.data.empty:
         print('total file is empty: no QC test applied')
         return T
@@ -300,6 +263,7 @@ def applyQC(T, dx, dy):
     # GDOP
     T.qc_qartod_gdop_threshold()
     
+    # Spatial Median
     T.qc_qartod_spatial_median(dx, dy)
 
     # Overall QC
@@ -307,7 +271,7 @@ def applyQC(T, dx, dy):
     
     return T
 
-################################################################################
+#-------------------------------------------------------------------------------
 
 # processRadials - combine radials into totals
 def processRadials(rads):
@@ -316,7 +280,7 @@ def processRadials(rads):
     this function processes the input radial files and then combines them into totals
     
     INPUTS: rads = DataFrame containing the radials to be processed grouped by timestamp
-                         for the input network with the related information
+                   for the input network with the related information
 
     OUTPUTS:
         
@@ -393,7 +357,7 @@ def processTotals(dfTot):
     return
 
 
-################################################################################
+#-------------------------------------------------------------------------------
 
 # RadBinsInSearchRadius
 def findBins(cell, radial, sR, g):
@@ -743,12 +707,6 @@ def performRadialCombination(combRad, bb):
     
     return combTot
 
-################################################################################
-
-
-# testing
-#T = performRadialCombination(rDF, bb)
-#print(T)
 
 
 
@@ -757,9 +715,11 @@ def performRadialCombination(combRad, bb):
 
 
 
-#-------------------------------------------------------------------------------
 
-# ok, I can now proceed to call functions
+############################# CALLING FUNCTIONS ################################
+
+
+
 
 # get the radial dataframe and bounding box info for grid
 rDF, bb = selectRadials([radial_dir1, radial_dir2, radial_dir3], '2024_04_16_1700')
