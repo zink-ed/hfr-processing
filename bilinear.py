@@ -303,6 +303,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
+
 # Intialize an empty subplot using cartopy
 fig, ax = plt.subplots(
     #figsize=(11, 8),
