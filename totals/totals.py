@@ -1,3 +1,4 @@
+# import packages
 import datetime as dt
 from dateutil.relativedelta import relativedelta
 import numpy as np
@@ -5,21 +6,22 @@ import xarray as xr
 import netCDF4
 import pandas as pd
 from shapely.geometry import Point
-import geopandas as gpd
 import re
 import io
 import os
-from common import fileParser, addBoundingBoxMetadata
 from collections import OrderedDict
-from calc import evaluateGDOP, createLonLatGridFromBB
 import fnmatch
 import warnings
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
+import geopandas as gpd
 from geopandas import GeoSeries
-from statistics import mean
 
+# import from files
+from common import fileParser, addBoundingBoxMetadata
+from calc import evaluateGDOP
 
+# Total Class
 class Total(fileParser):
     
     """
@@ -45,27 +47,26 @@ class Total(fileParser):
                 self.cur_data = table['data']
                 
         if 'SiteSource' in self.metadata.keys():
-            if not self.is_wera:
-                table_data = u''
-                for ss in self.metadata['SiteSource']:
-                    if '%%' in ss:
-                        rep = {' comp': '_comp', ' Distance': '_Distance',' Ratio': '_Ratio',' (dB)': '_(dB)',' Width': '_Width', ' Resp': '_Resp', 'Value ': 'Value_','FOL ':'FOL_' }
-                        rep = dict((re.escape(k), v) for k, v in rep.items())
-                        pattern = re.compile('|'.join(rep.keys()))
-                        ss_header = pattern.sub(lambda m: rep[re.escape(m.group(0))], ss).strip('%% SiteSource \n')
-                    else:
-                        ss = ss.replace('%SiteSource:', '').strip()
-                        ss = ss.replace('Radial', '').strip()
-                        table_data += '{}\n'.format(ss)
-                # use pandas read_csv because it interprets the datatype for each column of the csv
-                tdf = pd.read_csv(
-                    io.StringIO(table_data),
-                    sep=' ',
-                    header=None,
-                    names=ss_header.split(),
-                    skipinitialspace=True
-                )
-                self.site_source = tdf
+            table_data = u''
+            for ss in self.metadata['SiteSource']:
+                if '%%' in ss:
+                    rep = {' comp': '_comp', ' Distance': '_Distance',' Ratio': '_Ratio',' (dB)': '_(dB)',' Width': '_Width', ' Resp': '_Resp', 'Value ': 'Value_','FOL ':'FOL_' }
+                    rep = dict((re.escape(k), v) for k, v in rep.items())
+                    pattern = re.compile('|'.join(rep.keys()))
+                    ss_header = pattern.sub(lambda m: rep[re.escape(m.group(0))], ss).strip('%% SiteSource \n')
+                else:
+                    ss = ss.replace('%SiteSource:', '').strip()
+                    ss = ss.replace('Radial', '').strip()
+                    table_data += '{}\n'.format(ss)
+            # use pandas read_csv because it interprets the datatype for each column of the csv
+            tdf = pd.read_csv(
+                io.StringIO(table_data),
+                sep=' ',
+                header=None,
+                names=ss_header.split(),
+                skipinitialspace=True
+            )
+            self.site_source = tdf
                 
         # Evaluate GDOP for total files
         if hasattr(self, 'site_source'):
@@ -83,10 +84,8 @@ class Total(fileParser):
             self.data['GDOP'] = np.nan
             
         # Evaluate the number of contributing radials (NRAD) for CODAR total files
-        if hasattr(self, 'is_wera'):
-            if not self.is_wera:
-                if hasattr(self, 'data'):
-                    self.data['NRAD'] = self.data.loc[:, self.data.columns.str.contains('S.*CN')].sum(axis=1)
+        if hasattr(self, 'data'):
+            self.data['NRAD'] = self.data.loc[:, self.data.columns.str.contains('S.*CN')].sum(axis=1)
             
 
         if replace_invalid:
@@ -314,11 +313,7 @@ class Total(fileParser):
             fig.savefig(save_dir + photo_name)
         
         return fig
-        
-        
-    import numpy as np
-    import datetime as dt
-    import xarray as xr
+
 
     # def to_xarray_multidimensional
     def to_xarray(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, grid_res=None):

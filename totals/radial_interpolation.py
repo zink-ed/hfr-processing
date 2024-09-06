@@ -1,4 +1,3 @@
-
 # import libraries
 from radials import Radial
 
@@ -25,13 +24,24 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from statistics import mean
 
-   
+''' 
+FUNCTIONS IN THIS FILE:
+    interpolation(R, d)
+    plot(x, y, u, v, colors)
+'''
+
+################################################################################
 
 def interpolation(R, d):
 
     '''
+    
+    this function interpolates the radial data based on the limit set
 
-    input: R = Radial object
+    Input: R = Radial object
+           d = limit of interpolation
+           
+    Output: R = interpolated Radial object
 
     '''
 
@@ -122,7 +132,6 @@ def interpolation(R, d):
     create_dict(lon_orig, temp_lon)
     create_dict(lat_orig, temp_lat)
     create_dict(bearings, temp_bear)
-
 
     # goes through each key / range
     for n, t, b, r in zip(temp_lon, temp_lat, temp_bear, range(rows)):
@@ -299,26 +308,27 @@ def interpolation(R, d):
     add_data()
     
     return R
-    #return lon, lat, velo_int, std_int, head
 
-    # turning into numpy arrays (combine both)
+    # turning into numpy arrays (combine both) for plotting purposes
     #x = np.concatenate((lon_original, lon_lin, lon_bilin)) 
     #y = np.concatenate((lat_original, lat_lin, lat_bilin)) 
     #u = np.concatenate((u_original, u_lin, u_bilin))
     #v = np.concatenate((v_original, v_lin, v_bilin))
     #colors = np.concatenate([['c'] * len(u_original), ['tomato'] * len(u_lin), ['b'] * len(u_bilin)])
    
-#print(R.data)
+''' FOR TESTING 
+print(R.data)
 R = interpolation(R, 2)    
-#print(R.data)  
+print(R.data)  
+'''
 
-
-# import plotting stuff
+# import plotting libraries
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib import colors
 from matplotlib.colors import TwoSlopeNorm
 import matplotlib.lines as mlines
+
 
 # plotting from the matrix (to monitor progress)
 def plot(x, y, u, v, colors):
