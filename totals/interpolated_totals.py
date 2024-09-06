@@ -416,7 +416,7 @@ def combineRadials(rDF, grid, search, gRes, tStp):
     #print(Tcomb.data.shape)
     
     
-    processRadials(rDF, interpolate=False)
+    processRadials(rDF, interpolate=True)
    
     # add Total objects to the DataFrame
     rDF['Total'] = (rDF.filepath + '/' + rDF.filename).apply(lambda x: Total(x))
@@ -708,7 +708,7 @@ def performRadialCombination(combRad, bb, name):
     print(T.data)
     
     #print(T)
-    T.plot(show=True, shade=True, save=False, interpolated=False)
+    T.plot(show=True, shade=True, save=False, interpolated=True)
     #plot_cartopy(T)
     
     # add the Total object to the DataFrame

@@ -17,6 +17,7 @@ import warnings
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 from geopandas import GeoSeries
+from statistics import mean
 
 
 class Total(fileParser):
@@ -163,7 +164,6 @@ class Total(fileParser):
         self.metadata = OrderedDict()
         self.metadata['GreatCircle'] = ''.join(gridGS.crs.ellipsoid.name.split()) + ' ' + str(gridGS.crs.ellipsoid.semi_major_metre) + '  ' + str(gridGS.crs.ellipsoid.inverse_flattening)
         
-
         
 # plot - plot totals -----------------------------------------------------------
     def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True, save=False, interpolated=False):
@@ -239,6 +239,7 @@ class Total(fileParser):
         
         # plot velocity field
         if shade:
+            '''
             self.to_xarray()
             
             # Create grid from longitude and latitude
@@ -254,18 +255,28 @@ class Total(fileParser):
             # Make the pseudo-color plot
             warnings.simplefilter("ignore", category=UserWarning)
             c = m.pcolormesh(X, Y, V, shading='nearest', cmap=plt.cm.jet, vmin=0, vmax=1)
+            '''
+            from oceans.ocfis import uv2spdir, spdir2uv
             
             # Compute the native map projection coordinates for the vectors
             x, y = m(self.data.LOND, self.data.LATD)
             
+            
+            
             # Create the velocity component variables
-            u = self.data.VELU / 100        # CODAR velocities are in cm/s
-            v = self.data.VELV / 100        # CODAR velocities are in cm/s
+            u = self.data.VELU / 100       # CODAR velocities are in cm/s
+            v = self.data.VELV / 100       # CODAR velocities are in cm/s
+            vel = abs(self.data.VELO) / 100
+            
+            angle, speed = uv2spdir(u.squeeze(), v.squeeze())
+            u_norm, v_norm = spdir2uv(np.ones_like(speed), angle, deg=True)
+            
+            #color_clipped = np.clip(speed, 0, 1).squeeze()
             
             # Make the quiver plot
-            m.quiver(x, y, u, v, width=0.001, headwidth=4, headlength=4, headaxislength=4)
+            m.quiver(x, y, u * 0.8 + u_norm * 0.2, v * 0.8 + v_norm * 0.2, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
             
-            warnings.simplefilter("default", category=UserWarning)
+            #warnings.simplefilter("default", category=UserWarning)
             
         else:
             # Compute the native map projection coordinates for the vectors

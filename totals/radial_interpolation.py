@@ -7,7 +7,7 @@ import os
 import xarray as xr
 
 # read in the data of a radial file
-radial_dir1 = '../radials_clean/MARA/'
+#radial_dir1 = '../radials_clean/MARA/'
 #radial_dir2 = '../radials_clean/WEST/'
 #radial_dir3 = '../radials_clean/JEFF/'
           
@@ -15,10 +15,10 @@ radial_dir1 = '../radials_clean/MARA/'
 #save_dir = './post_int_images'
 
 # use glob to find radial files (*
-files = sorted(glob.glob(os.path.join(radial_dir1, '*.ruv')))
+#files = sorted(glob.glob(os.path.join(radial_dir1, '*.ruv')))
 
 # select file
-R = Radial(files[70])
+#R = Radial(files[70])
 
 import numpy as np
 import pandas as pd
