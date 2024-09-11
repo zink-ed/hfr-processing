@@ -16,10 +16,13 @@ from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import geopandas as gpd
 from geopandas import GeoSeries
+from oceans.ocfis import uv2spdir, spdir2uv
 
 # import from files
 from common import fileParser, addBoundingBoxMetadata
 from calc import evaluateGDOP
+
+import total_interpolation as ti
 
 # Total Class
 class Total(fileParser):
@@ -255,7 +258,7 @@ class Total(fileParser):
             warnings.simplefilter("ignore", category=UserWarning)
             c = m.pcolormesh(X, Y, V, shading='nearest', cmap=plt.cm.jet, vmin=0, vmax=1)
             '''
-            from oceans.ocfis import uv2spdir, spdir2uv
+           
             
             # Compute the native map projection coordinates for the vectors
             x, y = m(self.data.LOND, self.data.LATD)
@@ -273,7 +276,8 @@ class Total(fileParser):
             #color_clipped = np.clip(speed, 0, 1).squeeze()
             
             # Make the quiver plot
-            m.quiver(x, y, u * 0.8 + u_norm * 0.2, v * 0.8 + v_norm * 0.2, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
+            m.quiver(x, y, u * 0.75 + u_norm * 0.25, v * 0.75 + v_norm * 0.25, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
+            #m.quiver(x, y, u, v, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
             
             #warnings.simplefilter("default", category=UserWarning)
             
@@ -285,6 +289,14 @@ class Total(fileParser):
             u = self.data.VELU / 100                # CODAR velocities are in cm/s
             v = self.data.VELV / 100                # CODAR velocities are in cm/s
             vel = abs(self.data.VELO) / 100         # CODAR velocities are in cm/s                
+            
+            angle, speed = uv2spdir(u.squeeze(), v.squeeze())
+            color_clipped = np.clip(speed, 0, 1).squeeze()
+            
+            
+            x, y, u, v, vel = ti.interpolation(self)
+            
+            x, y = m(x, y)
             
             # Make the quiver plot
             m.quiver(x, y, u, v, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
@@ -944,6 +956,7 @@ class Total(fileParser):
         Return a string representing the type of file this is.
         """
         return 'totals'
-        
-        
-        
+    
+    
+
+
