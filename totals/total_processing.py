@@ -425,6 +425,17 @@ def combineRadials(rDF, grid, search, gRes, tStp):
 
 #-------------------------------------------------------------------------------
 
+def applyFlag(T):
+   
+    # set the test name
+    testName = 'INTP'
+    
+    # all data (default flag = 0)
+    T.data.loc[:,testName] = 0
+
+    # original data (flag = 1)
+    T.data.loc[(T.data['VELU'].isnull() == False), testName] = 1
+
 
 # qc_radial-file
 def applyQC(T, dx, dy):
@@ -561,7 +572,7 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     
     # create the geographical grid
     grid, dx, dy = createGrid(bb[0], bb[1], bb[2], bb[3], gridRes)
-    #print(grid)
+    print(grid.shape)
     
     # get the timestamp
     timeStamp = dt.datetime.strptime(str(rads.iloc[0]['datetime']),'%Y-%m-%d %H:%M:%S')
@@ -577,11 +588,19 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     T.grid = grid
     #print(T.file_name)
     
-    T = processTotals(T, dx, dy)
-   
+    '''
+    print(T.data)
+    print(T.data.dropna())
     
+    T = ti.interpolation(T, dx, dy, 2)
+    
+    print(T.data)
+    print(T.data.dropna(subset=['VELU']))
+    '''
+    
+    #T = processTotals(T, dx, dy)
    
-    T.plot(show=True, shade=True, save=False, interpolated=True)
+    #T.plot(show=True, shade=True, save=False, interpolated=True)
        
     # save file?
     

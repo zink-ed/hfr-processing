@@ -22,7 +22,7 @@ from oceans.ocfis import uv2spdir, spdir2uv
 from common import fileParser, addBoundingBoxMetadata
 from calc import evaluateGDOP
 
-import total_interpolation as ti
+#import total_interpolation as ti
 
 # Total Class
 class Total(fileParser):
@@ -260,6 +260,10 @@ class Total(fileParser):
             '''
            
             
+            #self.data = self.data[self.data['INTP'] == 2]
+            
+            #print(self.data)
+            
             # Compute the native map projection coordinates for the vectors
             x, y = m(self.data.LOND, self.data.LATD)
             
@@ -274,6 +278,8 @@ class Total(fileParser):
             u_norm, v_norm = spdir2uv(np.ones_like(speed), angle, deg=True)
             
             #color_clipped = np.clip(speed, 0, 1).squeeze()
+            
+            #print(len(u))
             
             # Make the quiver plot
             m.quiver(x, y, u * 0.75 + u_norm * 0.25, v * 0.75 + v_norm * 0.25, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
@@ -292,11 +298,6 @@ class Total(fileParser):
             
             angle, speed = uv2spdir(u.squeeze(), v.squeeze())
             color_clipped = np.clip(speed, 0, 1).squeeze()
-            
-            
-            x, y, u, v, vel = ti.interpolation(self)
-            
-            x, y = m(x, y)
             
             # Make the quiver plot
             m.quiver(x, y, u, v, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
@@ -782,7 +783,7 @@ class Total(fileParser):
         # set bad flag for velocities not passing the test
         if 'NRAD' in self.data.columns:
             self.data.loc[(self.data['NRAD'] < minContrRad), testName] = 4
-            print("DATA DENSITY THRESHOLD")
+            #print("DATA DENSITY THRESHOLD")
     
         self.metadata['QCTest'][testName] = 'Data Density Threshold QC Test - Test applies to each vector. ' \
             + 'Threshold=[' + f'minimum number of contributing radial velocities={minContrRad}]'
@@ -877,7 +878,7 @@ class Total(fileParser):
         
         self.data[testName] = self.data[testName].where(~boolean, other=4)
         
-        print(self.data[self.data[testName] == 4])
+        #print(self.data[self.data[testName] == 4])
         self.metadata['QCTest'][testName] = 'Spatial Median QC Test - Test applies to each vector. ' \
             + 'Thresholds=[' + f'current_difference={str(diff)} (cm/s)]'
         
