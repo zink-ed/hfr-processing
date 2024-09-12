@@ -1,3 +1,13 @@
+
+# Created Aug 2024 by Cathleen Qiao
+
+# This file was created to find better ways to interpolate the radial data. My
+# initial code was very long and unorganized. This file will help to group
+# code into functions and to simplify the code.
+
+# This file is used for testing.
+
+
 # import libraries
 from hfradarpy.radials import Radial
 import xarray as xr

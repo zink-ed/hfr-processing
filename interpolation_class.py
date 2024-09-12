@@ -1,3 +1,13 @@
+
+# Created Aug 2024 by Cathleen Qiao
+
+# This file was created to deal with interpolation issues. I had an idea to 
+# create a class that I could use for interpolating the radial data instead 
+# of creating so many matrices. 
+
+# This file is used for testing.
+
+
 from hfradarpy.radials import Radial
 import xarray as xr
 

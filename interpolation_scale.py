@@ -1,3 +1,14 @@
+
+# Created Aug 2024 by Cathleen Qiao
+
+# This file was created to deal with scaling issues when plotting with quiver.
+# Initially, I had two lists, the original and the interpolated data, but
+# separately plotting the two lists with quiver would result in different
+# scalings for the arrows. Thus, it wasn't an accurate visual depiction. 
+
+# This file is used for testing.
+
+
 # import libraries
 from hfradarpy.radials import Radial
 import xarray as xr
