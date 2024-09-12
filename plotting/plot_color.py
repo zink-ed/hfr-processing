@@ -1,14 +1,25 @@
+
+# This file is for saving the color plots of all the raw radial data. 
+
+# Look at hfradarpy repository for more information:
+# https://github.com/rucool/hfradarpy
+
+
 from hfradarpy.radials import Radial, qc_radial_file
 import glob
 import os
 import xarray as xr
 
+site = 'MARA/'
+
 # Path to radial directory
-radial_dir = '/home/cqiao/HFR_proc/radials_raw/'
-save_dir = '/home/cqiao/HFR_proc/pre_proc_images/color_plots/'
+radial_dir = '../radial-data/raw/' + site
+save_dir = '../radial-plot/raw/' + site
+
 
 # Use glob to find radial files (*
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
+
 
 def save_radial(r):
     tds = r.to_xarray('gridded', enhance=True).squeeze()

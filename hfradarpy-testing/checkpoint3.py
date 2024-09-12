@@ -1,10 +1,20 @@
+
+# This file is derived from the hfradarpy github repository. It is one of their
+# example notebooks called Plot Timeseries From Radials. I used it to plot 
+# timeseries and to get a better understanding of the radial class. This file 
+# is meant to be run with ipython. Look at their notebook for more information
+# and comments.
+
+# https://github.com/rucool/hfradarpy/blob/master/examples/notebooks/plot_timeseries_from_radials.ipynb
+
+
 from hfradarpy.radials import Radial, concat
 import glob
 import os
 import xarray as xr
 
 # Path to radial directory
-radial_dir = '/home/cqiao/HFR_proc/radials_raw/'
+radial_dir = '../radial-data/raw/MARA/'
 
 # Use glob to find radial files (*
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
@@ -205,7 +215,7 @@ axes[1].set_xlabel('')
 
 plt.tight_layout()
 plt.show()
-# plt.savefig('/Users/mikesmith/Desktop/isaias-mean.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
+# plt.savefig('path', dpi=300, bbox_inches='tight', pad_inches=0.1)
 
 # Single bearing bin, multiple ranges
 azimuth = 0

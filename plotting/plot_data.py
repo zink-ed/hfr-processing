@@ -1,22 +1,28 @@
+
+# This file is for saving the plots of all the raw radial data. 
+
+# Look at the hfradarpy repository for more information:
+# https://github.com/rucool/hfradarpy
+
+
 from hfradarpy.radials import Radial, qc_radial_file
 import glob
 import os
 import xarray as xr
 
-# Path to radial directory
-radial_dir = '/home/cqiao/HFR_proc/radials_qc/'
-save_dir = '/home/cqiao/HFR_proc/post_proc_images/pf_plots/'
+site = 'MARA/'
 
-#radial_dir = '/home/cqiao/HFR_proc/radials_clean/'
-#save_dir = '/home/cqiao/HFR_proc/post_proc_images/clean_plots/'
+# Path to radial directory
+radial_dir = '../radial-data/raw/' + site
+save_dir = '../radial-plot/raw/' + site
+
 
 # Use glob to find radial files (*
 files = sorted(glob.glob(os.path.join(radial_dir, '*.ruv')))
 
-def plot_pf(r):
-    tds = r.to_xarray('gridded', enhance=True).squeeze()
 
-    # Lets get rid of the single time dimension. It will cause problems during plotting
+def save_radial(r):
+    tds = r.to_xarray('gridded', enhance=True).squeeze()
     tds = tds.squeeze()
 
     # Import matplotlib and cartopy
@@ -53,7 +59,7 @@ def plot_pf(r):
 
     dx = dy = 0.2  # Area around the point of interest.
 
-    extent = [tds.lon.min()-dx, tds.lon.max()+dx, tds.lat.min()-dy, tds.lat.max()+dy]
+    extent = [tds.lon.min()-dx, tds.lon.max()+dx, tds.lat.min()-dy, tds.lat.max()-1]
 
     # Create a re-usable function for map features that we can pass an axes to.
     def map_features(ax):
@@ -98,99 +104,34 @@ def plot_pf(r):
                        left=True, right=True,
                        labelleft=True, labelright=False,
                        width=1)
-
+                       
     # Intialize an empty subplot using cartopy
     fig, ax = plt.subplots(
         figsize=(11, 8),
         subplot_kw=dict(projection=ccrs.Mercator())
     )
 
+    plt.title(f'Raw Data Radial Plot\n{tds.time.data}')
+    #plt.title(f'Processed Data Radial Plot\n{tds.time.data}')
+    plt.quiver(tds.lon.data, tds.lat.data, tds.u.data, tds.v.data, transform=ccrs.PlateCarree())
+
     # Get the receiver location for plotting purposes
     receiver_location = [float(x) for x in tds.Origin.split('  ')]
     receiver_location.reverse()
     receiver_location
 
-    import numpy.ma as ma
-    import numpy as np
-
-    time = tds.time
-    lon = tds.coords['lon'].data
-    lat = tds.coords['lat'].data
-    u = tds['u'].data
-    v = tds['v'].data
-
-    u = ma.masked_invalid(u)
-    v = ma.masked_invalid(v)
-
-    from oceans.ocfis import uv2spdir, spdir2uv
-
-    angle, speed = uv2spdir(u, v)  # convert u/v to angle and speed
-
-    u, v = spdir2uv(  # convert angle and speed back to u/v, normalizing the arrow sizes
-        np.ones_like(speed),
-        angle,
-        deg=True
-    )
-
-    from matplotlib import colors
-    from matplotlib.colors import TwoSlopeNorm, Normalize
-    
-    scale=None
-    headwidth=3
-    headlength=5
-    headaxislength=5
-    sub=1
-    velocity_min = -40
-    velocity_max = 40
-    cbar_step = 10
-    offset = Normalize(vmin=velocity_min, vmax=velocity_max, clip=True)
-
-    color_clipped = tds.primary_flag_qc.where(tds.primary_flag_qc == 1, other=-1).data  # PRIM == 1 where vectors pass qc
-    
-    #color_clipped = tds.vector_flag.where(tds.vector_flag == 0, other=-1).data
-    
-    offset = TwoSlopeNorm(vmin=-1, vcenter=0, vmax=1)
-    title = "Radial Map: QC Pass/Fail"
-    cmap = colors.ListedColormap(['red', 'blue'])
-
-    fig, ax = plt.subplots(
-            figsize=(11, 8),
-            subplot_kw=dict(projection=ccrs.Mercator())
-        )
-
-    # Plot title
-    plt.title(f'{title}\n{tds.time.data}')
-
-
-    qargs = dict(cmap=cmap, scale=scale, headwidth=headwidth, headlength=headlength, headaxislength=headaxislength)
-    qargs['transform'] = ccrs.PlateCarree()
-    qargs['norm'] = offset
-
-    # plot arrows over pcolor
-    h = ax.quiver(
-        lon[::sub],
-        lat[::sub],
-        u[::sub],
-        v[::sub],
-        color_clipped,
-        **qargs
-    )
-    
-    import matplotlib.patches as mpatches
-    import matplotlib.pyplot as plt
-    
-    green = mpatches.Patch(color='limegreen', label='Pass')
-    red = mpatches.Patch(color='red', label='Fail')
-    
+    plt.plot(receiver_location[0], receiver_location[1], 'o', markersize=10, markeredgecolor='black', color='red', transform=ccrs.PlateCarree())
     map_features(ax)
-    plt.legend(handles=[green, red])
-    
-    file_name = r.file_name[:-4:] + '_pf.png'
+
+    file_name = r.file_name[:-20:] + '_raw.png'
+    #file_name = r.file_name[:-4:] + '.png'
 
     print(f'{file_name}')
 
     fig.savefig(save_dir + file_name)
     
-for f in files[:2]:
+    
+for f in files[:1]:
     r = Radial(f)
-    plot_pf(r)
+    save_radial(r)
+
