@@ -1,3 +1,14 @@
+
+# Created Sep 2024 by Cathleen Qiao
+
+# This file is for interpolating radial data, using scipy and a bilinear 
+# interpolation method. 
+
+# Look at these repositories for more information:
+# https://github.com/LorenzoCorgnati/EU_HFR_NODE_pyHFR/tree/main
+# https://github.com/rucool/hfradarpy/tree/master
+
+
 # import libraries
 from radials import Radial
 

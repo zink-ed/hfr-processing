@@ -1,3 +1,21 @@
+
+# Created Sep 2024 by Cathleen Qiao
+
+# This file is for combining multiple radial files into a total file. It 
+# selects radial files based on a time and combines the radial vectors to 
+# create total vectors. It can then process (quality control tests) and 
+# plot the total data.
+
+# This file is derived from these files:
+# https://github.com/LorenzoCorgnati/EU_HFR_NODE_pyHFR/blob/main/EU_HFR_NODE_HISTprocessor.py
+# https://github.com/LorenzoCorgnati/EU_HFR_NODE_pyHFR/blob/main/totals.py
+# https://github.com/rucool/hfradarpy/blob/master/hfradarpy/radials.py
+
+# Look at these repositories for more information:
+# https://github.com/LorenzoCorgnati/EU_HFR_NODE_pyHFR/tree/main
+# https://github.com/rucool/hfradarpy/tree/master
+
+
 # import packages
 import xarray as xr
 import pandas as pd
@@ -8,10 +26,10 @@ import os
 import math
 from pyproj import Geod
 
-from radials import Radial
+from package.radials import Radial
 from totals import Total
 
-from calc import createGrid, convertAngle
+from package.calc import createGrid, convertAngle
 
 # read in the data of a radial file
 radial_dir1 = '../radials_clean/MARA/'
@@ -22,10 +40,19 @@ radial_dir3 = '../radials_clean/JEFF/'
 import radial_interpolation as ri
 import total_interpolation as ti
 
+
 '''
 FUNCTIONS IN THIS FILE:
     selectRadials(paths, time)
-    
+    processRadials(rads, interpolate=False)
+    findBins(cell, rad, sR, g)
+    totalLeastSquare(velDF)
+    makeTotalVector(rBins, rDF)
+    combineRadials(rDF, grid, search, gRes, tStp)
+    applyFlag(T)
+    applyQC(T, dx, dy)
+    processTotals(T, dx, dy)
+    performRadialCombination(paths, time, interpolate=False, gridRes=3000, searchRad=5000)
 '''
 
 import pickle
@@ -437,7 +464,7 @@ def applyFlag(T):
     T.data.loc[(T.data['VELU'].isnull() == False), testName] = 1
 
 
-# qc_radial-file
+# qc_radial_file
 def applyQC(T, dx, dy):
     
     """
@@ -598,9 +625,9 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     print(T.data.dropna(subset=['VELU']))
     '''
     
-    #T = processTotals(T, dx, dy)
+    T = processTotals(T, dx, dy)
    
-    #T.plot(show=True, shade=True, save=False, interpolated=True)
+    T.plot(show=True, shade=True, save=False, interpolated=True)
        
     # save file?
     
@@ -614,7 +641,7 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
 
 
 paths = [radial_dir1, radial_dir2, radial_dir3]
-times = ['2024_04_17_2100']
+times = ['2024_04_18_2200']
 
 # calls the function to turn the radials into a total and also plots the total
 T = performRadialCombination(paths, times, interpolate=False)
