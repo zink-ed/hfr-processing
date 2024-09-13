@@ -14,7 +14,7 @@ site = 'MARA/'
 
 # Path to radial directory
 radial_dir = '../radial-data/flagged/' + site
-save_dir = '../radial-plot/flagged' + site
+save_dir = '../radial-plots/flagged/' + site
 
 
 # Use glob to find radial files (*
@@ -61,7 +61,10 @@ def plot_pf(r):
 
     dx = dy = 0.2  # Area around the point of interest.
 
+    # make adjustments to fit the data and get consistent boundaries
     extent = [tds.lon.min()-dx, tds.lon.max()+dx, tds.lat.min()-dy, tds.lat.max()+dy]
+    #extent = [-84.8567, -80.8899, 22.7965, 26.4564]
+    #print(extent)
 
     # Create a re-usable function for map features that we can pass an axes to.
     def map_features(ax):
@@ -187,18 +190,18 @@ def plot_pf(r):
     import matplotlib.patches as mpatches
     import matplotlib.pyplot as plt
     
-    green = mpatches.Patch(color='limegreen', label='Pass')
+    green = mpatches.Patch(color='blue', label='Pass')
     red = mpatches.Patch(color='red', label='Fail')
     
     map_features(ax)
     plt.legend(handles=[green, red])
     
-    file_name = r.file_name[:-4:] + '_pf.png'
+    file_name = r.file_name[:-4:] + '_PF.png'
 
     print(f'{file_name}')
 
     fig.savefig(save_dir + file_name)
     
-for f in files[:2]:
+for f in files:
     r = Radial(f)
     plot_pf(r)
