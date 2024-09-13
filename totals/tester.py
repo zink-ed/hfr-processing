@@ -49,16 +49,16 @@ def applyQC(T, dx, dy):
     
     return T
     
-    
-    
+time = '2024_04_20_0000'
+pkl = '../total-data/' + 'total_' + time + '.pkl'
 
-with open('file.pkl', 'rb') as file:
+with open(pkl, 'rb') as file:
 
     T = pickle.load(file)
     print(T.data)
 
-print(T.data.dropna(subset=['VELU']))
-print(T.data.dropna(subset=['HEAD']))
+#print(T.data.dropna(subset=['VELU']))
+#print(T.data.dropna(subset=['HEAD']))
   
 #T = ti.interpolation(T, 153, 76, 2)
 #T.data = T.data.dropna(subset=['VELU']) 
@@ -69,5 +69,14 @@ print(T.data.dropna(subset=['HEAD']))
 
 #T.data = T.data.dropna(subset=['VELU'])
 #print(T.data)
+
+
     
-T.plot(show=True, shade=True, interpolated=True)
+T.plot_cartopy(show=False, save=True, interpolated=False)
+
+
+
+
+
+
+

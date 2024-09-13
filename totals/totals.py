@@ -17,6 +17,10 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 from geopandas import GeoSeries
 from oceans.ocfis import uv2spdir, spdir2uv
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import matplotlib.ticker as mticker
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 # import from files
 from common import fileParser, addBoundingBoxMetadata
@@ -165,6 +169,7 @@ class Total(fileParser):
         # add metadata about datum and CRS
         self.metadata = OrderedDict()
         self.metadata['GreatCircle'] = ''.join(gridGS.crs.ellipsoid.name.split()) + ' ' + str(gridGS.crs.ellipsoid.semi_major_metre) + '  ' + str(gridGS.crs.ellipsoid.inverse_flattening)
+   
         
         
 # plot - plot totals -----------------------------------------------------------
@@ -172,7 +177,7 @@ class Total(fileParser):
         
         """
         this function plots the current total velocity field (VELU and VELV components) on a 
-        Cartesian grid
+        Cartesian grid using Basemap
         
         The grid is defined either from the input values or from the Total object
         metadata. If no input is passed and no metadata related to the bounding box are present, the
@@ -189,35 +194,40 @@ class Total(fileParser):
                  (if None it is taken from Total metadata)
                shade = boolean for enabling/disabling shade plot (default False)
                show = boolean for enabling/disabling plot visualization (default True)
+               save = boolean for saving the plot
+               interpolated = boolean for if the total data was interpolated (append to plot name)
             
         OUTPUT:
 
         """
         
         # initialize figure
-        fig = plt.figure(figsize=(24, 16),tight_layout = {'pad': 0})
+        fig = plt.figure(figsize=(24, 16),tight_layout = {'pad': 2})
         #fig = plt.figure()
+        
+        plt.subplots_adjust(top = 0.9, bottom = 0.1, left = 0.1, right = 0.9)
         
         # get the bounding box limits
         if not lon_min:
-            lon_min = self.data.LOND.min() - 1
+            lon_min = self.data.LOND.min() - 0.25
         if not lon_max:
-            lon_max = self.data.LOND.max() + 1
+            lon_max = self.data.LOND.max() + 0.25
         if not lat_min:
-            lat_min = self.data.LATD.min() - 1 
+            lat_min = self.data.LATD.min() - 0.3
         if not lat_max:
-            lat_max = self.data.LATD.max() + 1   
+            lat_max = self.data.LATD.max() + 0.4
                 
-        # evaluate lon and latof the center of the map
+        # evaluate lon and lat of the center of the map
         lon_center = (lon_max + lon_min) / 2
         lat_center = (lat_max + lat_min) / 2
             
         # set the background map
-        m = Basemap(llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max, urcrnrlat=lat_max, lon_0=lon_center, lat_0=lat_center, resolution = 'i', ellps='WGS84', projection='tmerc')        
+        m = Basemap(llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max, urcrnrlat=lat_max, lon_0=lon_center, lat_0=lat_center, resolution = 'i', ellps='WGS84', projection='merc')        
+        
         m.drawcoastlines()
         
-        m.fillcontinents(color='#cc9955', lake_color='white')
-        m.fillcontinents()
+        m.fillcontinents(lake_color='white')
+        m.fillcontinents(color='lightgrey', lake_color='lightblue')
         m.drawparallels(np.arange(lat_min,lat_max))
         m.drawmeridians(np.arange(lon_min,lon_max))
         m.drawmapboundary(fill_color='white')
@@ -303,24 +313,170 @@ class Total(fileParser):
             m.quiver(x, y, u, v, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4)
             
         # Add colorbar
-        cbar = plt.colorbar()
-        cbar.set_label('m/s',fontsize='x-large')
+        cbar = plt.colorbar(fraction=0.028, pad=0.02)
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label('m/s', fontsize=18)
         
         # Add title
-        plt.title(self.file_name + ' total velocity field', fontdict={'fontsize': 30, 'fontweight' : 'bold'})
+        plt.title(self.file_name + ' Total Velocity Field', fontdict={'fontsize': 24, 'fontweight' : 'bold'})
                 
         if show:
             plt.show()
         
-        save_dir = '../total_images/'
-        photo_name = self.file_name + '.png'
+        save_dir = '../total-plots/'
+        photo_name = 'total_' + self.file_name + '.png'
             
         if interpolated:
-            print("INTERPOLATED")
+            #print("INTERPOLATED")
             save_dir = save_dir + 'interpolated/'
             
         if save:
-            print("SAVE")
+            #print("SAVE")
+            print(save_dir)
+            print(photo_name)
+            fig.savefig(save_dir + photo_name)
+        
+        return fig
+
+    def plot_cartopy(self, show=True, save=False, interpolated=True):
+        
+        """
+        this function plots the current total velocity field (VELU and VELV components) on a 
+        Cartesian grid using Cartopy
+        
+        The grid is defined from the Total data content.
+        
+        INPUT: show = boolean for enabling/disabling plot visualization (default True)
+               save = boolean for saving the plot
+               interpolated = boolean for if the total data was interpolated (append to plot name)
+            
+        OUTPUT:
+
+        """
+        
+        # initialize figure
+        fig = plt.figure(figsize=(24, 16))
+        #fig = plt.figure()
+        
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
+        
+        fig.tight_layout(pad=8)
+        
+        # get the bounding box limits
+        lon_min = self.data.LOND.min() - 0.25
+        lon_max = self.data.LOND.max() + 0.25
+        lat_min = self.data.LATD.min() - 0.3
+        lat_max = self.data.LATD.max() + 0.5
+         
+        # Set colors of the land. 
+        edgecolor = 'black'
+        landcolor = 'lightgrey'
+
+        LAND = cfeature.NaturalEarthFeature(
+            'physical', 'land', '10m',
+            edgecolor='face',
+            facecolor='tan'
+        )
+
+        state_lines = cfeature.NaturalEarthFeature(
+            category='cultural',
+            name='admin_1_states_provinces_lines',
+            scale='50m',
+            facecolor='none'
+        )
+        
+        # Gridlines and grid labels
+        gl = ax.gridlines(
+            draw_labels=True,
+            linewidth=.5,
+            color='black',
+            alpha=0.25,
+            linestyle='--'
+        )
+
+        gl.top_labels = gl.right_labels = False
+        gl.xlabel_style = {'size': 16, 'color': 'black'}
+        gl.ylabel_style = {'size': 16, 'color': 'black'}
+        gl.xlocator = mticker.MaxNLocator(integer=True)
+        gl.ylocator = mticker.MaxNLocator(integer=True)
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+
+        ax.tick_params(which='major',
+                       direction='out',
+                       bottom=True, top=True,
+                       labelbottom=True, labeltop=False,
+                       left=True, right=True,
+                       labelleft=True, labelright=False,
+                       length=5, width=2)
+
+        ax.tick_params(which='minor',
+                       direction='out',
+                       bottom=True, top=True,
+                       labelbottom=True, labeltop=False,
+                       left=True, right=True,
+                       labelleft=True, labelright=False,
+                       width=1)
+
+        
+        x = self.data.LOND
+        y = self.data.LATD
+        
+        extent = [lon_min, lon_max, lat_min, lat_max]
+        ax.set_extent(extent)
+        
+        ax.add_feature(LAND, edgecolor=edgecolor, facecolor=landcolor)
+        #ax.add_feature(cfeature.OCEAN)
+        #ax.add_feature(cfeature.RIVERS)
+        #ax.add_feature(cfeature.LAKES)
+        ax.add_feature(cfeature.BORDERS)
+        ax.add_feature(state_lines, zorder=11, edgecolor=edgecolor)
+        
+        # get station coordinates and codes
+        siteLon = self.site_source['Lon'].to_numpy()
+        siteLat = self.site_source['Lat'].to_numpy()
+        siteCode = self.site_source['Name'].tolist()
+
+        
+        ax.scatter(siteLon, siteLat, color='red', s=50, transform=ccrs.PlateCarree())
+        
+        for label, xs, ys in zip(siteCode,siteLon,siteLat):
+            ax.text(xs,ys,label,fontsize=16,fontweight='bold')
+        
+        # Create the velocity component variables
+
+        u = self.data.VELU / 100       # CODAR velocities are in cm/s
+        v = self.data.VELV / 100       # CODAR velocities are in cm/s
+        vel = abs(self.data.VELO) / 100
+        
+        angle, speed = uv2spdir(u.squeeze(), v.squeeze())
+        u_norm, v_norm = spdir2uv(np.ones_like(speed), angle, deg=True)
+        
+        #color_clipped = np.clip(speed, 0, 1).squeeze()
+
+        # Make the quiver plot
+        plt.quiver(x, y, u * 0.75 + u_norm * 0.25, v * 0.75 + v_norm * 0.25, vel, cmap=plt.cm.jet, width=0.001, headwidth=4, headlength=4, headaxislength=4, transform=ccrs.PlateCarree())
+
+        # Add colorbar
+        cbar = plt.colorbar(fraction=0.028, pad=0.02)
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label('m/s', fontsize=18)
+        
+        # Add title
+        plt.title(self.file_name + ' Total Velocity Field', fontdict={'fontsize': 28, 'fontweight' : 'bold'})
+                
+        if show:
+            plt.show()
+        
+        save_dir = '../total-plots/'
+        photo_name = 'total_' + self.file_name + '.png'
+        
+        if interpolated:
+            #print("INTERPOLATED")
+            save_dir = save_dir + 'interpolated/'
+
+        if save:
+            #print("SAVE")
             print(save_dir)
             print(photo_name)
             fig.savefig(save_dir + photo_name)

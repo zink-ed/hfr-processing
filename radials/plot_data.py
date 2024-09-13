@@ -14,7 +14,7 @@ site = 'MARA/'
 
 # Path to radial directory
 radial_dir = '../radial-data/raw/' + site
-save_dir = '../radial-plot/raw/' + site
+save_dir = '../radial-plots/raw/' + site
 
 
 # Use glob to find radial files (*
@@ -59,7 +59,10 @@ def save_radial(r):
 
     dx = dy = 0.2  # Area around the point of interest.
 
-    extent = [tds.lon.min()-dx, tds.lon.max()+dx, tds.lat.min()-dy, tds.lat.max()-1]
+    # make adjustments to fit the data and get consistent boundaries
+    extent = [tds.lon.min()-dx, tds.lon.max()+dx, tds.lat.min()-dy, tds.lat.max()]
+    #extent = [-82.7138, -78.5527, 22.5945, 25.9852]
+    #print(extent)
 
     # Create a re-usable function for map features that we can pass an axes to.
     def map_features(ax):
@@ -123,15 +126,14 @@ def save_radial(r):
     plt.plot(receiver_location[0], receiver_location[1], 'o', markersize=10, markeredgecolor='black', color='red', transform=ccrs.PlateCarree())
     map_features(ax)
 
-    file_name = r.file_name[:-20:] + '_raw.png'
-    #file_name = r.file_name[:-4:] + '.png'
+    file_name = r.file_name[:-4:] + '_RAW.png'
 
     print(f'{file_name}')
 
     fig.savefig(save_dir + file_name)
     
     
-for f in files[:1]:
+for f in files:
     r = Radial(f)
     save_radial(r)
 

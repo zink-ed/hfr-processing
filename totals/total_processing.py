@@ -26,19 +26,19 @@ import os
 import math
 from pyproj import Geod
 
-from package.radials import Radial
+from radials import Radial
 from totals import Total
 
-from package.calc import createGrid, convertAngle
+from calc import createGrid, convertAngle
 
 # read in the data of a radial file
-radial_dir1 = '../radials_clean/MARA/'
-radial_dir2 = '../radials_clean/WEST/'
-radial_dir3 = '../radials_clean/JEFF/'
+radial_dir1 = '../radial-data/processed/MARA/'
+radial_dir2 = '../radial-data/processed/WEST/'
+radial_dir3 = '../radial-data/processed/JEFF/'
 
 # import file for conducting interpolation on radial data
 import radial_interpolation as ri
-import total_interpolation as ti
+#import total_interpolation as ti
 
 
 '''
@@ -452,18 +452,6 @@ def combineRadials(rDF, grid, search, gRes, tStp):
 
 #-------------------------------------------------------------------------------
 
-def applyFlag(T):
-   
-    # set the test name
-    testName = 'INTP'
-    
-    # all data (default flag = 0)
-    T.data.loc[:,testName] = 0
-
-    # original data (flag = 1)
-    T.data.loc[(T.data['VELU'].isnull() == False), testName] = 1
-
-
 # qc_radial_file
 def applyQC(T, dx, dy):
     
@@ -626,10 +614,15 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     '''
     
     T = processTotals(T, dx, dy)
-   
-    T.plot(show=True, shade=True, save=False, interpolated=True)
        
-    # save file?
+    # save file as pickle file
+    pkl_name = 'total_' + times[0] + '.pkl'
+    folder = '../total-data/'
+
+    with open(folder + pkl_name, 'wb') as file:
+        pickle.dump(T, file)
+        
+    T.plot(show=False, shade=True, save=True, interpolated=interpolate)
     
     return T
     
@@ -641,13 +634,11 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
 
 
 paths = [radial_dir1, radial_dir2, radial_dir3]
-times = ['2024_04_18_2200']
+times = ['2024_04_20_0000']
 
 # calls the function to turn the radials into a total and also plots the total
 T = performRadialCombination(paths, times, interpolate=False)
 
-with open('file.pkl', 'wb') as file:
-    pickle.dump(T, file)
 
 
 
