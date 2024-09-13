@@ -622,7 +622,8 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     with open(folder + pkl_name, 'wb') as file:
         pickle.dump(T, file)
         
-    T.plot(show=False, shade=True, save=True, interpolated=interpolate)
+    total_plots = '../total-plots/'
+    T.plot(show=False, shade=True, save=True, save_dir=total_plots, interpolated=interpolate)
     
     return T
     

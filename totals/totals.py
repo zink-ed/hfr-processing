@@ -173,7 +173,7 @@ class Total(fileParser):
         
         
 # plot - plot totals -----------------------------------------------------------
-    def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True, save=False, interpolated=False):
+    def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True, save=False, save_dir = None, interpolated=False):
         
         """
         this function plots the current total velocity field (VELU and VELV components) on a 
@@ -195,6 +195,7 @@ class Total(fileParser):
                shade = boolean for enabling/disabling shade plot (default False)
                show = boolean for enabling/disabling plot visualization (default True)
                save = boolean for saving the plot
+               save_dir = directory to save the total plot
                interpolated = boolean for if the total data was interpolated (append to plot name)
             
         OUTPUT:
@@ -338,7 +339,7 @@ class Total(fileParser):
         
         return fig
 
-    def plot_cartopy(self, show=True, save=False, interpolated=True):
+    def plot_cartopy(self, show=True, save=False, save_dir=None, interpolated=True):
         
         """
         this function plots the current total velocity field (VELU and VELV components) on a 
@@ -348,6 +349,7 @@ class Total(fileParser):
         
         INPUT: show = boolean for enabling/disabling plot visualization (default True)
                save = boolean for saving the plot
+               save_dir = directory to save the total plot
                interpolated = boolean for if the total data was interpolated (append to plot name)
             
         OUTPUT:
@@ -468,7 +470,6 @@ class Total(fileParser):
         if show:
             plt.show()
         
-        save_dir = '../total-plots/'
         photo_name = 'total_' + self.file_name + '.png'
         
         if interpolated:
