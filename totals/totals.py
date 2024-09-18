@@ -172,7 +172,7 @@ class Total(fileParser):
    
         
         
-# plot - plot totals -----------------------------------------------------------
+    # plot - plot totals -----------------------------------------------------------
     def plot(self, lon_min=None, lon_max=None, lat_min=None, lat_max=None, shade=False, show=True, save=False, save_dir = None, interpolated=False):
         
         """
@@ -196,7 +196,7 @@ class Total(fileParser):
                show = boolean for enabling/disabling plot visualization (default True)
                save = boolean for saving the plot
                save_dir = directory to save the total plot
-               interpolated = boolean for if the total data was interpolated (append to plot name)
+               interpolated = boolean for if the radial data was interpolated (append to plot name)
             
         OUTPUT:
 
@@ -248,7 +248,7 @@ class Total(fileParser):
         # plot radial stations
         m.plot(xS,yS,'rD')
         for label, xs, ys in zip(siteCode,xS,yS):
-            plt.text(xs,ys,label,fontdict={'fontsize': 16, 'fontweight' : 'bold'})
+            plt.text(xs + 0.1,ys + 0.1,label,fontdict={'fontsize': 16, 'fontweight' : 'bold'})
         
         # plot velocity field
         if shade:
@@ -339,7 +339,7 @@ class Total(fileParser):
         
         return fig
 
-    def plot_cartopy(self, show=True, save=False, save_dir=None, interpolated=True):
+    def plot_cartopy(self, show=True, save=False, save_dir=None):
         
         """
         this function plots the current total velocity field (VELU and VELV components) on a 
@@ -350,7 +350,7 @@ class Total(fileParser):
         INPUT: show = boolean for enabling/disabling plot visualization (default True)
                save = boolean for saving the plot
                save_dir = directory to save the total plot
-               interpolated = boolean for if the total data was interpolated (append to plot name)
+               interpolated = boolean for if the radial data was interpolated (append to plot name)
             
         OUTPUT:
 
@@ -425,7 +425,9 @@ class Total(fileParser):
         y = self.data.LATD
         
         extent = [lon_min, lon_max, lat_min, lat_max]
-        ax.set_extent(extent)
+        #ax.set_extent(extent)
+        #print(extent)
+        ax.set_extent([-83.543, -80.032, 22.924, 25.024])
         
         ax.add_feature(LAND, edgecolor=edgecolor, facecolor=landcolor)
         #ax.add_feature(cfeature.OCEAN)
@@ -443,7 +445,7 @@ class Total(fileParser):
         ax.scatter(siteLon, siteLat, color='red', s=50, transform=ccrs.PlateCarree())
         
         for label, xs, ys in zip(siteCode,siteLon,siteLat):
-            ax.text(xs,ys,label,fontsize=16,fontweight='bold')
+            ax.text(xs, ys + 0.05, label, fontsize=18, fontweight='bold', color='red', transform=ccrs.PlateCarree())
         
         # Create the velocity component variables
 
@@ -471,15 +473,9 @@ class Total(fileParser):
             plt.show()
         
         photo_name = 'total_' + self.file_name + '.png'
-        
-        if interpolated:
-            #print("INTERPOLATED")
-            save_dir = save_dir + 'interpolated/'
 
         if save:
-            #print("SAVE")
-            print(save_dir)
-            print(photo_name)
+            print(save_dir + photo_name)
             fig.savefig(save_dir + photo_name)
         
         return fig
@@ -607,308 +603,7 @@ class Total(fileParser):
         
         return
     
-    
-    def check_ehn_mandatory_variables(self):
-        """
-        This function checks if the Total object contains all the mandatory data variables
-        (i.e. not coordinate variables) required by the European standard data model developed in the framework of the 
-        EuroGOOS HFR Task Team.
-        Missing variables are appended to the DataFrame containing data, filled with NaNs.
-        
-        INPUT:            
-            
-        OUTPUT:
-        """
-        # Set mandatory variables based on the HFR manufacturer
-        chkVars = ['VELU', 'VELV', 'UQAL', 'VQAL', 'CQAL', 'GDOP']
-            
-        # Check variables and add missing ones
-        for vv in chkVars:
-            if vv not in self.data.columns:
-                self.data[vv] = np.nan
-                
-        return
-    
-    
-    def apply_ehn_datamodel(self, network_data, station_data, version):
-        """
-        This function applies the European standard data model developed in the
-        framework of the EuroGOOS HFR Task Team to the Total object.
-        The Total object content is stored into an xarray Dataset built from the
-        xarray DataArrays created by the Total method to_xarray_multidimensional.
-        Variable data types and data packing information are collected from
-        "Data_Models/EHN/Totals/Total_Data_Packing.json" file.
-        Variable attribute schema is collected from 
-        "Data_Models/EHN/Totals/Total_Variables.json" file.
-        Global attribute schema is collected from 
-        "Data_Models/EHN/Global_Attributes.json" file.
-        Global attributes are created starting from Total object metadata and from 
-        DataFrames containing the information about HFR network and radial stations
-        read from the EU HFR NODE database.
-        The generated xarray Dataset is attached to the Total object, named as xds.
-        
-        INPUT:
-            
-            
-        OUTPUT:
-        """
-        # Set the netCDF format
-        ncFormat = 'NETCDF4_CLASSIC'
-        
-        # Expand Total object variables along the coordinate axes
-        if self.is_combined:
-            self.to_xarray_multidimensional()
-        else:
-            # Get bounding box limits and grid resolution from database
-            lonMin = network_data.iloc[0]['geospatial_lon_min']
-            lonMax = network_data.iloc[0]['geospatial_lon_max']
-            latMin = network_data.iloc[0]['geospatial_lat_min']
-            latMax = network_data.iloc[0]['geospatial_lat_max']
-            gridRes = network_data.iloc[0]['grid_resolution']*1000
-            self.to_xarray_multidimensional(lonMin,lonMax,latMin,latMax,gridRes)
-        
-        # Set auxiliary coordinate sizes
-        maxsiteSize = 150
-        refmaxSize = 50
-        maxinstSize = 50
-        
-        # Get data packing information per variable
-        f = open('Data_Models/EHN/Totals/Total_Data_Packing.json')
-        dataPacking = json.loads(f.read())
-        f.close()
-        
-        # Get variable attributes
-        f = open('Data_Models/EHN/Totals/Total_Variables.json')
-        totVariables = json.loads(f.read())
-        f.close()
-        
-        # Get global attributes
-        f = open('Data_Models/EHN/Global_Attributes.json')
-        globalAttributes = json.loads(f.read())
-        f.close()
-        
-        # Rename velocity related and quality related variables
-        self.xdr['EWCT'] = self.xdr.pop('VELU')
-        self.xdr['NSCT'] = self.xdr.pop('VELV')
-        if 'UQAL' in self.xdr:
-            self.xdr['EWCS'] = self.xdr.pop('UQAL')
-        if 'VQAL' in self.xdr:
-            self.xdr['NSCS'] = self.xdr.pop('VQAL')
-        if 'CQAL' in self.xdr:
-            self.xdr['CCOV'] = self.xdr.pop('CQAL')
-        
-        # Drop unnecessary DataArrays from the DataSet
-        toDrop = ['VFLG', 'XDST', 'YDST', 'RNGE', 'BEAR','NRAD', 'VELO', 'HEAD','index']
-        for t in toDrop:
-            if t in self.xdr:
-                self.xdr.pop(t)
-        toDrop = list(self.xdr.keys())
-        for t in toDrop:
-            if fnmatch.fnmatch(t,'S*CN'):
-                self.xdr.pop(t)
-        toDrop = []
-        for vv in self.xdr:
-            if vv not in totVariables.keys():
-                toDrop.append(vv)
-        for rv in toDrop:
-            self.xdr.pop(rv)            
-            
-        # Add coordinate reference system to the dictionary
-        self.xdr['crs'] = xr.DataArray(int(0), )       
-        
-        # Add antenna related variables to the dictionary
-        # Number of antennas        
-        contributingSiteNrx = station_data.loc[station_data['station_id'].isin(self.site_source.Name.tolist())]['number_of_receive_antennas'].to_numpy()
-        nRX = np.asfarray(contributingSiteNrx)
-        nRX = np.pad(nRX, (0, maxsiteSize - len(nRX)), 'constant',constant_values=(np.nan,np.nan))
-        contributingSiteNtx = station_data.loc[station_data['station_id'].isin(self.site_source.Name.tolist())]['number_of_transmit_antennas'].to_numpy()
-        nTX = np.asfarray(contributingSiteNtx)
-        nTX = np.pad(nTX, (0, maxsiteSize - len(nTX)), 'constant',constant_values=(np.nan,np.nan))
-        self.xdr['NARX'] = xr.DataArray([nRX], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['NATX'] = xr.DataArray([nTX], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        
-        # Longitude and latitude of antennas
-        contributingSiteLat = station_data.loc[station_data['station_id'].isin(self.site_source.Name.tolist())]['site_lat'].to_numpy()
-        siteLat = np.pad(contributingSiteLat, (0, maxsiteSize - len(contributingSiteLat)), 'constant',constant_values=(np.nan,np.nan))
-        contributingSiteLon = station_data.loc[station_data['station_id'].isin(self.site_source.Name.tolist())]['site_lon'].to_numpy()
-        siteLon = np.pad(contributingSiteLon, (0, maxsiteSize - len(contributingSiteLon)), 'constant',constant_values=(np.nan,np.nan))
-        self.xdr['SLTR'] = xr.DataArray([siteLat], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['SLNR'] = xr.DataArray([siteLon], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['SLTT'] = xr.DataArray([siteLat], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['SLNT'] = xr.DataArray([siteLon], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        
-        # Codes of antennas
-        contributingSiteCodeList = station_data.loc[station_data['station_id'].isin(self.site_source.Name.tolist())]['station_id'].tolist()
-        antCode = np.array([site.encode() for site in contributingSiteCodeList])
-        antCode = np.pad(antCode, (0, maxsiteSize - len(contributingSiteCodeList)), 'constant',constant_values=('',''))
-        self.xdr['SCDR'] = xr.DataArray(np.array([antCode]), dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['SCDR'].encoding['char_dim_name'] = 'STRING' + str(len(station_data['station_id'].to_numpy()[0]))
-        self.xdr['SCDT'] = xr.DataArray(np.array([antCode]), dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXSITE': maxsiteSize})
-        self.xdr['SCDT'].encoding['char_dim_name'] = 'STRING' + str(len(station_data['station_id'].to_numpy()[0]))
-                
-        # Add SDN namespace variables to the dictionary
-        siteCode = ('%s' % network_data.iloc[0]['network_id']).encode()
-        self.xdr['SDN_CRUISE'] = xr.DataArray([siteCode], dims={'TIME': len(pd.date_range(self.time, periods=1))})
-        self.xdr['SDN_CRUISE'].encoding['char_dim_name'] = 'STRING' + str(len(siteCode))
-        platformCode = ('%s' % network_data.iloc[0]['network_id'] + '-Total').encode()
-        self.xdr['SDN_STATION'] = xr.DataArray([platformCode], dims={'TIME': len(pd.date_range(self.time, periods=1))})
-        self.xdr['SDN_STATION'].encoding['char_dim_name'] = 'STRING' + str(len(platformCode))
-        ID = ('%s' % platformCode.decode() + '_' + self.time.strftime('%Y-%m-%dT%H:%M:%SZ')).encode()
-        self.xdr['SDN_LOCAL_CDI_ID'] = xr.DataArray([ID], dims={'TIME': len(pd.date_range(self.time, periods=1))})
-        self.xdr['SDN_LOCAL_CDI_ID'].encoding['char_dim_name'] = 'STRING' + str(len(ID))
-        sdnEDMO = np.asfarray(pd.concat([network_data['EDMO_code'],station_data['EDMO_code']]).unique())
-        sdnEDMO = np.pad(sdnEDMO, (0, maxinstSize - len(sdnEDMO)), 'constant',constant_values=(np.nan,np.nan))
-        self.xdr['SDN_EDMO_CODE'] = xr.DataArray([sdnEDMO], dims={'TIME': len(pd.date_range(self.time, periods=1)), 'MAXINST': maxinstSize})
-        sdnRef = ('%s' % network_data.iloc[0]['metadata_page']).encode()
-        self.xdr['SDN_REFERENCES'] = xr.DataArray([sdnRef], dims={'TIME': len(pd.date_range(self.time, periods=1))})
-        self.xdr['SDN_REFERENCES'].encoding['char_dim_name'] = 'STRING' + str(len(sdnRef))
-        sdnXlink = ('%s' % '<sdn_reference xlink:href=\"' + sdnRef.decode() + '\" xlink:role=\"\" xlink:type=\"URL\"/>').encode()
-        self.xdr['SDN_XLINK'] = xr.DataArray(np.array([[sdnXlink]]), dims={'TIME': len(pd.date_range(self.time, periods=1)), 'REFMAX': refmaxSize})
-        self.xdr['SDN_XLINK'].encoding['char_dim_name'] = 'STRING' + str(len(sdnXlink))
-        
-        # Add spatial and temporal coordinate QC variables (set to good data due to the nature of HFR system)
-        self.xdr['TIME_QC'] = xr.DataArray([1],dims={'TIME': len(pd.date_range(self.time, periods=1))})
-        self.xdr['POSITION_QC'] = self.xdr['QCflag'] * 0 + 1
-        self.xdr['DEPTH_QC'] = xr.DataArray([1],dims={'TIME': len(pd.date_range(self.time, periods=1))})
-            
-        # Create DataSet from DataArrays
-        self.xds = xr.Dataset(self.xdr)
-        
-        # Add data variable attributes to the DataSet
-        for vv in self.xds:
-            self.xds[vv].attrs = totVariables[vv]
-            
-        # Update QC variable attribute "comment" for inserting test thresholds and attribute "flag_values" for assigning the right data type
-        for qcv in self.metadata['QCTest']:
-            if qcv in self.xds:
-                self.xds[qcv].attrs['comment'] = self.xds[qcv].attrs['comment'] + ' ' + self.metadata['QCTest'][qcv]
-                self.xds[qcv].attrs['flag_values'] = list(np.int_(self.xds[qcv].attrs['flag_values']).astype(dataPacking[qcv]['dtype']))
-        for qcv in ['TIME_QC', 'POSITION_QC', 'DEPTH_QC']:
-            if qcv in self.xds:
-                self.xds[qcv].attrs['flag_values'] = list(np.int_(self.xds[qcv].attrs['flag_values']).astype(dataPacking[qcv]['dtype']))
-                
-        # Add coordinate variable attributes to the DataSet
-        for cc in self.xds.coords:
-            self.xds[cc].attrs = totVariables[cc]
-            
-        # Evaluate measurement maximum depth
-        vertMax = 3e8 / (8*np.pi * station_data['transmit_central_frequency'].to_numpy().min()*1e6)
-        
-        # Evaluate time coverage start, end, resolution and duration
-        timeCoverageStart = self.time - relativedelta(minutes=network_data.iloc[0]['temporal_resolution']/2)
-        timeCoverageEnd = self.time + relativedelta(minutes=network_data.iloc[0]['temporal_resolution']/2)
-        timeResRD = relativedelta(minutes=network_data.iloc[0]['temporal_resolution'])
-        timeCoverageResolution = 'PT'
-        if timeResRD.hours !=0:
-            timeCoverageResolution += str(int(timeResRD.hours)) + 'H'
-        if timeResRD.minutes !=0:
-            timeCoverageResolution += str(int(timeResRD.minutes)) + 'M'
-        if timeResRD.seconds !=0:
-            timeCoverageResolution += str(int(timeResRD.seconds)) + 'S'   
-            
-        # Fill global attributes
-        globalAttributes['site_code'] = siteCode.decode()
-        globalAttributes['platform_code'] = platformCode.decode()
-        globalAttributes.pop('oceanops_ref')
-        globalAttributes.pop('wmo_platform_code')
-        globalAttributes.pop('wigos_id')
-        globalAttributes['doa_estimation_method'] = ', '.join(station_data[["station_id", "DoA_estimation_method"]].apply(": ".join, axis=1))
-        globalAttributes['calibration_type'] = ', '.join(station_data[["station_id", "calibration_type"]].apply(": ".join, axis=1))
-        if 'HFR-US' in network_data.iloc[0]['network_id']:
-            station_data['last_calibration_date'] = 'N/A'
-            globalAttributes['last_calibration_date'] = ', '.join(pd.concat([station_data['station_id'],station_data['last_calibration_date']],axis=1)[["station_id", "last_calibration_date"]].apply(": ".join, axis=1))
-        else:
-            globalAttributes['last_calibration_date'] = ', '.join(pd.concat([station_data['station_id'],station_data['last_calibration_date'].apply(lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ'))],axis=1)[["station_id", "last_calibration_date"]].apply(": ".join, axis=1))
-            globalAttributes['last_calibration_date'] = globalAttributes['last_calibration_date'].replace('1-01-01T00:00:00Z', 'N/A')
-        globalAttributes['calibration_link'] = ', '.join(station_data[["station_id", "calibration_link"]].apply(": ".join, axis=1))
-        # globalAttributes['title'] = network_data.iloc[0]['title']
-        globalAttributes['title'] = 'Near Real Time Surface Ocean Total Velocity by ' + globalAttributes['platform_code']
-        globalAttributes['summary'] = network_data.iloc[0]['summary']
-        globalAttributes['institution'] = ', '.join(pd.concat([network_data['institution_name'],station_data['institution_name']]).unique().tolist())
-        globalAttributes['institution_edmo_code'] = ', '.join([str(x) for x in pd.concat([network_data['EDMO_code'],station_data['EDMO_code']]).unique().tolist()])
-        globalAttributes['institution_references'] = ', '.join(pd.concat([network_data['institution_website'],station_data['institution_website']]).unique().tolist())
-        globalAttributes['id'] = ID.decode()
-        globalAttributes['project'] = network_data.iloc[0]['project']
-        globalAttributes['comment'] = network_data.iloc[0]['comment']
-        globalAttributes['network'] = network_data.iloc[0]['network_name']
-        globalAttributes['data_type'] = globalAttributes['data_type'].replace('current data', 'total current data')
-        globalAttributes['geospatial_lat_min'] = str(network_data.iloc[0]['geospatial_lat_min'])
-        globalAttributes['geospatial_lat_max'] = str(network_data.iloc[0]['geospatial_lat_max'])
-        globalAttributes['geospatial_lat_resolution'] = str(network_data.iloc[0]['grid_resolution'])
-        globalAttributes['geospatial_lon_min'] = str(network_data.iloc[0]['geospatial_lon_min'])
-        globalAttributes['geospatial_lon_max'] = str(network_data.iloc[0]['geospatial_lon_max'])
-        globalAttributes['geospatial_lon_resolution'] = str(network_data.iloc[0]['grid_resolution'])        
-        globalAttributes['geospatial_vertical_max'] = str(vertMax)
-        globalAttributes['geospatial_vertical_resolution'] = str(vertMax)        
-        globalAttributes['time_coverage_start'] = timeCoverageStart.strftime('%Y-%m-%dT%H:%M:%SZ')
-        globalAttributes['time_coverage_end'] = timeCoverageEnd.strftime('%Y-%m-%dT%H:%M:%SZ')
-        globalAttributes['time_coverage_resolution'] = timeCoverageResolution
-        globalAttributes['time_coverage_duration'] = timeCoverageResolution
-        globalAttributes['area'] = network_data.iloc[0]['area']
-        globalAttributes['format_version'] = version
-        globalAttributes['netcdf_format'] = ncFormat
-        globalAttributes['citation'] += network_data.iloc[0]['citation_statement']
-        globalAttributes['license'] = network_data.iloc[0]['license']
-        globalAttributes['acknowledgment'] = network_data.iloc[0]['acknowledgment']
-        globalAttributes['processing_level'] = '3B'
-        globalAttributes['contributor_name'] = network_data.iloc[0]['contributor_name']
-        globalAttributes['contributor_role'] = network_data.iloc[0]['contributor_role']
-        globalAttributes['contributor_email'] = network_data.iloc[0]['contributor_email']
-        globalAttributes['manufacturer'] = ', '.join(station_data[["station_id", "manufacturer"]].apply(": ".join, axis=1))
-        globalAttributes['sensor_model'] = ', '.join(station_data[["station_id", "manufacturer"]].apply(": ".join, axis=1))
-        globalAttributes['software_version'] = version
-        
-        creationDate = dt.datetime.utcnow()
-        globalAttributes['metadata_date_stamp'] = creationDate.strftime('%Y-%m-%dT%H:%M:%SZ')
-        globalAttributes['date_created'] = creationDate.strftime('%Y-%m-%dT%H:%M:%SZ')
-        globalAttributes['date_modified'] = creationDate.strftime('%Y-%m-%dT%H:%M:%SZ')
-        globalAttributes['history'] = 'Data collected at ' + self.time.strftime('%Y-%m-%dT%H:%M:%SZ') + '. netCDF file created at ' \
-                                    + creationDate.strftime('%Y-%m-%dT%H:%M:%SZ') + ' by the European HFR Node.'        
-        
-        # Add global attributes to the DataSet
-        self.xds.attrs = globalAttributes
-            
-        # Encode data types, data packing and _FillValue for the data variables of the DataSet
-        for vv in self.xds:
-            if vv in dataPacking:
-                if 'dtype' in dataPacking[vv]:
-                    self.xds[vv].encoding['dtype'] = dataPacking[vv]['dtype']
-                if 'scale_factor' in dataPacking[vv]:
-                    self.xds[vv].encoding['scale_factor'] = dataPacking[vv]['scale_factor']                
-                if 'add_offset' in dataPacking[vv]:
-                    self.xds[vv].encoding['add_offset'] = dataPacking[vv]['add_offset']
-                if 'fill_value' in dataPacking[vv]:
-                    self.xds[vv].encoding['_FillValue'] = netCDF4.default_fillvals[np.dtype(dataPacking[vv]['dtype']).kind + str(np.dtype(dataPacking[vv]['dtype']).itemsize)]
-                else:
-                    self.xds[vv].encoding['_FillValue'] = None
-                    
-        # Update valid_min and valid_max variable attributes according to data packing
-        for vv in self.xds:
-            if 'valid_min' in totVariables[vv]:
-                if ('scale_factor' in dataPacking[vv]) and ('add_offset' in dataPacking[vv]):
-                    self.xds[vv].attrs['valid_min'] = np.float_(((totVariables[vv]['valid_min'] - dataPacking[vv]['add_offset']) / dataPacking[vv]['scale_factor'])).astype(dataPacking[vv]['dtype'])
-                else:
-                    self.xds[vv].attrs['valid_min'] = np.float_(totVariables[vv]['valid_min']).astype(dataPacking[vv]['dtype'])
-            if 'valid_max' in totVariables[vv]:             
-                if ('scale_factor' in dataPacking[vv]) and ('add_offset' in dataPacking[vv]):
-                    self.xds[vv].attrs['valid_max'] = np.float_(((totVariables[vv]['valid_max'] - dataPacking[vv]['add_offset']) / dataPacking[vv]['scale_factor'])).astype(dataPacking[vv]['dtype'])
-                else:
-                    self.xds[vv].attrs['valid_max'] = np.float_(totVariables[vv]['valid_max']).astype(dataPacking[vv]['dtype'])
-            
-        # Encode data types and avoid data packing, valid_min, valid_max and _FillValue for the coordinate variables of the DataSet
-        for cc in self.xds.coords:
-            if cc in dataPacking:
-                if 'dtype' in dataPacking[cc]:
-                    self.xds[cc].encoding['dtype'] = dataPacking[cc]['dtype']
-                if 'valid_min' in totVariables[cc]:
-                    del self.xds[cc].attrs['valid_min']
-                if 'valid_max' in totVariables[cc]:
-                    del self.xds[cc].attrs['valid_max']
-                self.xds[cc].encoding['_FillValue'] = None
-               
-        return
 
-    
     def initialize_qc(self):
         
         """
@@ -1106,7 +801,7 @@ class Total(fileParser):
             indexes = self.data[self.data['PRIM'] == 4].index
             self.data.drop(indexes, inplace=True)
             self.data.reset_index(level=None, drop=False, inplace=True)
-            print("ERASED")
+            #print("ERASED")
              
 
     def file_type(self):

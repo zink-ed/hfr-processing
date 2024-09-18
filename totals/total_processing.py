@@ -587,7 +587,7 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
     
     # create the geographical grid
     grid, dx, dy = createGrid(bb[0], bb[1], bb[2], bb[3], gridRes)
-    print(grid.shape)
+    #print(grid.shape)
     
     # get the timestamp
     timeStamp = dt.datetime.strptime(str(rads.iloc[0]['datetime']),'%Y-%m-%d %H:%M:%S')
@@ -623,7 +623,8 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
         pickle.dump(T, file)
         
     total_plots = '../total-plots/'
-    T.plot(show=False, shade=True, save=True, save_dir=total_plots, interpolated=interpolate)
+    #T.plot(show=False, shade=True, save=True, save_dir=total_plots, interpolated=interpolate)
+    T.plot_cartopy(show=False, save=True, save_dir=total_plots)
     
     return T
     
@@ -635,10 +636,10 @@ def performRadialCombination(paths, time, interpolate=False, gridRes=3000, searc
 
 
 paths = [radial_dir1, radial_dir2, radial_dir3]
-times = ['2024_04_20_0000']
+times = ['2024_04_20_0700']
 
 # calls the function to turn the radials into a total and also plots the total
-T = performRadialCombination(paths, times, interpolate=False)
+T = performRadialCombination(paths, times, interpolate=True)
 
 
 
